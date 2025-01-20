@@ -1,0 +1,44 @@
+
+Terraform will perform the following actions:
+
+  # aws_instance.DevOps-2 will be updated in-place
+  ~ resource "aws_instance" "DevOps-2" {
+        id                                   = "i-042fff360372ce3ca"
+      ~ tags                                 = {
+          - "OS_Type" = "Linux" -> null
+        }
+      ~ tags_all                             = {
+          - "OS_Type" = "Linux" -> null
+        }
+        # (38 unchanged attributes hidden)
+
+        # (8 unchanged blocks hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+Changes to Outputs:
+  ~ OS_Type           = {
+      ~ OS_Type = "aws_instance.DevOps-2.tags.OS_Type" -> {}
+    }
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+aws_instance.DevOps-2: Modifying... [id=i-042fff360372ce3ca]
+aws_instance.DevOps-2: Modifications complete after 5s [id=i-042fff360372ce3ca]
+
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+
+Outputs:
+
+OS_Type = tomap({
+  "OS_Type" = tomap({})
+})
+ami_id = "ami-0c7af5fe939f2677f"
+instance_id = "i-042fff360372ce3ca"
+public-ip-address = "98.81.210.158"
+
