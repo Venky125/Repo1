@@ -1,0 +1,30 @@
+provider "aws" {
+  region = "us-east-1" # Replace with your desired region
+}
+
+# Create an SSM Document to run the CloudWatch Agent installation document
+resource "aws_ssm_document" "run_cloudwatch_install" {
+  name          = "RunCloudWatchInstallDocument"
+  document_type = "Automation"
+  content = jsonencode({
+    schemaVersion = "0.3"
+    description   = "Installs and configures the Amazon CloudWatch Agent using the AmazonCloudWatch-ManageAgent document."
+    mainSteps = [
+      {
+        name = "installCloudWatchAgent"
+        action = "aws:executeAutomation"
+        inputs = {
+          DocumentName = "AmazonCloudWatch-ManageAgent"
+          Parameters = {
+            action = "install" # Specify the action to install CloudWatch Agent
+            mode   = "ec2"     # Specify the target mode (ec2 or on-premises)
+          }
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Environment = "Development"
+  }
+}
