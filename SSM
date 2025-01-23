@@ -1,0 +1,82 @@
+provider "aws" {
+  region = "us-east-1" # Replace with your preferred region
+}
+
+# Create Child SSM Document 1
+resource "aws_ssm_document" "child1" {
+  name          = "ChildSSMDocument1"
+  document_type = "Command"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Child document 1"
+    mainSteps = [
+      {
+        action = "aws:runShellScript"
+        name   = "RunShellScript"
+        inputs = {
+          runCommand = [
+            "echo 'Executing Child SSM Document 1'",
+            "uptime"
+          ]
+        }
+      }
+    ]
+  })
+}
+
+# Create Child SSM Document 2
+resource "aws_ssm_document" "child2" {
+  name          = "ChildSSMDocument2"
+  document_type = "Command"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Child document 2"
+    mainSteps = [
+      {
+        action = "aws:runShellScript"
+        name   = "RunShellScript"
+        inputs = {
+          runCommand = [
+            "echo 'Executing Child SSM Document 2'",
+            "df -h"
+          ]
+        }
+      }
+    ]
+  })
+}
+
+# Create Parent SSM Document
+resource "aws_ssm_document" "parent" {
+  name          = "ParentSSMDocument"
+  document_type = "Command"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Parent document to run other SSM documents"
+    mainSteps = [
+      {
+        action = "aws:runDocument"
+        name   = "RunChildDocument1"
+        inputs = {
+          DocumentName = aws_ssm_document.child1.name
+        }
+      },
+      {
+        action = "aws:runDocument"
+        name   = "RunChildDocument2"
+        inputs = {
+          DocumentName = aws_ssm_document.child2.name
+        }
+      }
+    ]
+  })
+}
+
+# Associate Parent Document with an EC2 Instance
+resource "aws_ssm_association" "parent_association" {
+  name        = aws_ssm_document.parent.name
+  instance_id = "i-0abc1234def56789" # Replace with your EC2 Instance ID
+}
