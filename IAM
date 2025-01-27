@@ -1,0 +1,62 @@
+Here is a Terraform code snippet that checks for an IAM role and creates it if it doesn't exist:
+
+Explanation
+
+1. Data Source (aws_iam_role): This is used to check if the IAM role exists.
+
+
+2. count: It evaluates whether the role exists. If it doesn't, Terraform creates it.
+
+
+3. IAM Role: This section creates the IAM role if needed.
+
+
+
+Code
+
+provider "aws" {
+  region = "us-east-1" # Change to your desired region
+}
+
+# Check if the IAM role exists
+data "aws_iam_role" "existing_role" {
+  name = "my-role-name" # Replace with your desired IAM role name
+}
+
+# Create IAM role only if it doesn't exist
+resource "aws_iam_role" "new_role" {
+  count = length(data.aws_iam_role.existing_role.id) == 0 ? 1 : 0
+
+  name               = "my-role-name" # Replace with the IAM role name
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+output "role_created" {
+  value = aws_iam_role.new_role.name
+  condition = aws_iam_role.new_role.count > 0
+  description = "The name of the IAM role created, if applicable."
+}
+
+Steps to Use
+
+1. Replace my-role-name with the name of your IAM role.
+
+
+2. Customize the assume_role_policy based on the requirements of the role.
+
+
+3. Run terraform init, terraform plan, and terraform apply.
+
+
+
+This code ensures that the IAM role will only be created if it doesn't already exist.
+
