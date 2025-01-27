@@ -1,0 +1,130 @@
+In Terraform, an if true condition can be implemented using the ternary operator or logical expressions to handle resource attributes or properties. Here’s an example where you always include a certain value in the targets of an SSM association when a condition evaluates to true.
+
+
+---
+
+Example: Terraform Code for if true Condition in SSM Association Targets
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Input variable to define the condition (true or false)
+variable "include_production_targets" {
+  default     = true # Change to false to test other conditions
+  description = "Condition to include Production targets"
+}
+
+# Example SSM Document
+resource "aws_ssm_document" "example" {
+  name          = "MySSMDocument"
+  document_type = "Command"
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "SSM document example with true condition"
+    mainSteps     = [
+      {
+        action = "aws:runShellScript"
+        name   = "RunCommand"
+        inputs = {
+          runCommand = [
+            "echo 'This is executed by SSM association!'"
+          ]
+        }
+      }
+    ]
+  })
+}
+
+# SSM Association with Conditional Targets
+resource "aws_ssm_association" "example" {
+  name             = aws_ssm_document.example.name
+  association_name = "MyTrueConditionAssociation"
+
+  # Define targets based on the condition
+  targets = var.include_production_targets ? [
+    {
+      key    = "tag:Environment"
+      values = ["Production"]
+    }
+  ] : []
+
+  parameters = {
+    commands = ["echo 'Running command with Production targets!'"]
+  }
+
+  schedule_expression = "rate(1 hour)" # Optional periodic execution
+  compliance_severity = "HIGH"
+}
+
+
+---
+
+Explanation:
+
+1. variable "include_production_targets":
+
+A boolean variable determines whether to include the Production targets in the targets section.
+
+If true, the Production targets are included. If false, the targets section becomes an empty list ([]).
+
+
+
+2. targets Property:
+
+The targets section uses a ternary operator:
+
+var.include_production_targets ? [...] : []
+
+If include_production_targets is true, the targets include tag:Environment = Production.
+
+If false, the targets list is empty, meaning no specific targets are defined.
+
+
+
+
+3. SSM Document:
+
+Contains a simple runCommand script for demonstration purposes.
+
+
+
+4. SSM Association:
+
+Dynamically associates the SSM document to the specified targets based on the condition.
+
+
+
+
+
+---
+
+Deployment Steps:
+
+1. Save the file as ssm_true_condition.tf.
+
+
+2. Initialize Terraform:
+
+terraform init
+
+
+3. Plan and apply the changes:
+
+terraform plan -var="include_production_targets=true"
+terraform apply -var="include_production_targets=true"
+
+
+
+
+---
+
+What Happens:
+
+If include_production_targets=true, the SSM association targets instances with the Environment=Production tag.
+
+If include_production_targets=false, the targets list will be empty, and no instances will be targeted.
+
+
+This approach demonstrates how to implement a conditional if true logic in Terraform for dynamic resource configuration.
+
