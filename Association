@@ -1,0 +1,143 @@
+In Terraform, you can use the count or for_each meta-arguments in combination with the conditional expressions (if-else) to apply conditions for the targets section of an SSM association.
+
+Below is an example Terraform code that dynamically sets the targets for an SSM association based on a condition:
+
+
+---
+
+Example: Conditional Targets in SSM Association (Terraform)
+
+provider "aws" {
+  region = "us-east-1" # Replace with your desired region
+}
+
+# Input variable to define the environment
+variable "environment" {
+  default     = "Production" # Replace with "Development" or other values
+  description = "The environment to target for the SSM association"
+}
+
+# Example SSM Document
+resource "aws_ssm_document" "example" {
+  name          = "MySSMDocument"
+  document_type = "Command"
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "SSM document for dynamic targeting"
+    mainSteps     = [
+      {
+        action = "aws:runShellScript"
+        name   = "RunCommand"
+        inputs = {
+          runCommand = [
+            "echo Hello from {{ environment }}!"
+          ]
+        }
+      }
+    ]
+  })
+}
+
+# SSM Association with Conditional Targets
+resource "aws_ssm_association" "example" {
+  name             = aws_ssm_document.example.name
+  association_name = "MyConditionalAssociation"
+
+  # Conditional Targets
+  targets = var.environment == "Production" ? [
+    {
+      key    = "tag:Environment"
+      values = ["Production"]
+    }
+  ] : [
+    {
+      key    = "tag:Environment"
+      values = ["Development"]
+    }
+  ]
+
+  parameters = {
+    commands = ["echo Running for environment: ${var.environment}"]
+  }
+
+  schedule_expression = "rate(1 hour)" # Optional periodic execution
+  compliance_severity = "MEDIUM"       # Optional compliance severity
+}
+
+
+---
+
+Key Components:
+
+1. Input Variable:
+
+variable "environment": Defines the environment (Production or Development) as an input variable for dynamic target selection.
+
+
+
+2. Conditional Logic in targets:
+
+The targets property uses a ternary operator:
+
+var.environment == "Production" ? [...] : [...]
+
+If the environment is Production, it targets instances with the tag Environment=Production.
+
+Otherwise, it targets instances with the tag Environment=Development.
+
+
+
+
+3. SSM Document:
+
+The document contains a parameterized script (runCommand) that uses the environment variable for dynamic behavior.
+
+
+
+4. SSM Association:
+
+Links the SSM document to the instances based on the conditionally defined targets.
+
+
+
+5. Parameters:
+
+Passes additional commands or inputs to the SSM document during execution.
+
+
+
+
+
+---
+
+Steps to Use:
+
+1. Save the code as ssm_association.tf.
+
+
+2. Initialize Terraform:
+
+terraform init
+
+
+3. Plan and apply the changes:
+
+terraform plan -var="environment=Production"
+terraform apply -var="environment=Production"
+
+Replace Production with Development or any other value as needed.
+
+
+
+
+---
+
+What Happens:
+
+If environment=Production, the SSM association will target instances with the tag Environment=Production.
+
+If environment=Development, it will target instances with the tag Environment=Development.
+
+
+This approach ensures that the targets section is dynamically configured based on the provided condition.
+
