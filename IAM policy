@@ -1,0 +1,77 @@
+Here is the Terraform code to check for a specific IAM policy and create it only if it doesn't exist:
+
+
+---
+
+Explanation
+
+1. Data Source (aws_iam_policy): Checks if the IAM policy exists using its name or ARN.
+
+
+2. count: Determines whether the policy exists, and creates it only if it doesn't.
+
+
+
+
+---
+
+Code
+
+provider "aws" {
+  region = "us-east-1" # Change to your desired region
+}
+
+# Check if the IAM policy exists
+data "aws_iam_policy" "existing_policy" {
+  arn = "arn:aws:iam::aws:policy/MyPolicyName" # Replace with your policy ARN
+}
+
+# Create IAM policy only if it doesn't exist
+resource "aws_iam_policy" "new_policy" {
+  count = length(data.aws_iam_policy.existing_policy.arn) == 0 ? 1 : 0
+
+  name        = "MyPolicyName" # Replace with your desired policy name
+  description = "My custom IAM policy"
+  policy      = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetObject"]
+        Resource = ["arn:aws:s3:::example-bucket", "arn:aws:s3:::example-bucket/*"]
+      }
+    ]
+  })
+}
+
+output "policy_created" {
+  value       = aws_iam_policy.new_policy[0].arn
+  condition   = aws_iam_policy.new_policy.count > 0
+  description = "The ARN of the IAM policy created, if applicable."
+}
+
+
+---
+
+Steps to Use
+
+1. Replace arn:aws:iam::aws:policy/MyPolicyName with the ARN of the policy you want to check.
+
+
+2. Replace MyPolicyName with the desired policy name for the new policy.
+
+
+3. Customize the policy JSON as needed for your requirements.
+
+
+4. Run terraform init, terraform plan, and terraform apply.
+
+
+
+Notes
+
+If the IAM policy already exists, Terraform won't create a new one.
+
+Ensure the provided arn in the data "aws_iam_policy" block matches the exact ARN of the existing policy for proper detection.
+
+
