@@ -1,0 +1,87 @@
+Here's an example of a Terraform configuration that checks for an IAM role policy and creates it if it doesn't already exist. Since Terraform is declarative, it doesn't "check" explicitly but instead ensures the desired state is achieved.
+
+Prerequisites
+
+Ensure you have:
+
+1. Terraform installed.
+
+
+2. AWS credentials configured in your environment.
+
+
+
+Terraform Code
+
+provider "aws" {
+  region = "us-east-1" # Replace with your desired region
+}
+
+# Data block to check if an IAM policy exists
+data "aws_iam_policy" "existing_policy" {
+  name = "MyIAMPolicy" # Replace with the name of the policy you're checking
+}
+
+# IAM Policy Document
+data "aws_iam_policy_document" "policy_document" {
+  statement {
+    actions   = ["s3:ListBucket", "s3:GetObject"]
+    resources = ["arn:aws:s3:::example-bucket", "arn:aws:s3:::example-bucket/*"]
+  }
+}
+
+# Resource block to create IAM policy if it does not exist
+resource "aws_iam_policy" "new_policy" {
+  name        = "MyIAMPolicy"
+  description = "Policy for accessing S3 bucket"
+
+  policy = data.aws_iam_policy_document.policy_document.json
+
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes        = [policy]
+  }
+
+  depends_on = [data.aws_iam_policy.existing_policy]
+}
+
+# IAM Role
+resource "aws_iam_role" "example_role" {
+  name               = "MyIAMRole"
+  assume_role_policy = data.aws_iam_policy_document.policy_document.json
+}
+
+Explanation
+
+1. data "aws_iam_policy":
+
+Checks if an IAM policy with the specified name exists. If it exists, Terraform will not overwrite it.
+
+
+
+2. aws_iam_policy_document:
+
+Specifies the content of the IAM policy.
+
+
+
+3. aws_iam_policy:
+
+Creates the policy only if it does not already exist.
+
+
+
+4. IAM Role:
+
+Attaches the policy to an IAM role.
+
+
+
+
+Notes
+
+Terraform doesn't support conditional logic (like if/else) in the configuration. If the resource exists, Terraform will manage it; otherwise, it will create it.
+
+To make this process dynamic, you might want to run a script or use tools like AWS CLI before applying the Terraform configuration.
+
+
