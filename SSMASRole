@@ -1,1 +1,120 @@
 
+To create an SSM Association using Terraform and link it with a specific IAM role, you can use the following example code. This example assumes that you have already created the IAM role and the SSM document (Automation document).
+
+Terraform Code Example
+
+# Define the IAM Role ARN to be used in the SSM Association
+variable "iam_role_arn" {
+  description = "The ARN of the IAM Role to use for the SSM association."
+  type        = string
+}
+
+# Define the SSM Document name
+variable "ssm_document_name" {
+  description = "The name of the SSM document to associate."
+  type        = string
+}
+
+# Define the parameters for the SSM Document
+variable "ssm_parameters" {
+  description = "The parameters to pass to the SSM document."
+  type        = map(string)
+  default     = {} # Update with specific parameters if needed
+}
+
+# Define the targets for the association
+variable "ssm_targets" {
+  description = "The targets for the SSM association, e.g., Instance IDs or tags."
+  type        = list(map(string))
+  default     = []
+}
+
+# Create the SSM Association
+resource "aws_ssm_association" "example" {
+  name          = var.ssm_document_name
+  association_name = "example-ssm-association" # Replace with your desired name
+  iam_role      = var.iam_role_arn
+
+  # Specify parameters for the SSM document
+  parameters = var.ssm_parameters
+
+  # Define the targets for the association
+  dynamic "targets" {
+    for_each = var.ssm_targets
+    content {
+      key    = targets.value["key"]    # Example: "InstanceIds" or "tag:Environment"
+      values = targets.value["values"] # List of values for the key
+    }
+  }
+}
+
+
+---
+
+How to Use
+
+1. Inputs Configuration: Update the variables file or pass the values directly. Here's an example of a terraform.tfvars file:
+
+iam_role_arn     = "arn:aws:iam::123456789012:role/MySSMAssociationRole"
+ssm_document_name = "AWS-ApplyPatchBaseline"
+ssm_parameters = {
+  Operation = "Scan"
+}
+ssm_targets = [
+  {
+    key    = "InstanceIds"
+    values = ["i-0123456789abcdef0"]
+  }
+]
+
+
+2. Initialize Terraform:
+
+terraform init
+
+
+3. Plan the Deployment:
+
+terraform plan
+
+
+4. Apply the Deployment:
+
+terraform apply
+
+
+
+
+---
+
+Key Notes
+
+1. IAM Role:
+
+Ensure the IAM role specified in iam_role_arn has the necessary permissions to execute the SSM document.
+
+
+
+2. SSM Document:
+
+Replace AWS-ApplyPatchBaseline with the name of the SSM document you want to use.
+
+Ensure the document exists in your AWS account.
+
+
+
+3. Targets:
+
+Use InstanceIds for specific instances or tag:KeyName for targeting instances based on tags.
+
+
+
+4. SSM Parameters:
+
+Update the ssm_parameters variable with the parameters required by your specific SSM document.
+
+
+
+
+Let me know if you need further clarification!
+
