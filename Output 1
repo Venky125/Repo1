@@ -1,0 +1,69 @@
+In Terraform, you can assign the output of a module to a variable by referencing the module's output and assigning it to a variable using the output block. Here's how to do it:
+
+
+---
+
+Example Terraform Code
+
+1. Module Definition: Create a module that outputs a value.
+
+
+
+# modules/example-module/main.tf
+output "example_output" {
+  value = "This is the module output value"
+}
+
+
+---
+
+2. Main Configuration: Use the module and assign its output to a variable.
+
+
+
+# main.tf
+module "example" {
+  source = "./modules/example-module"
+}
+
+# Assign module output to a variable
+variable "example_variable" {
+  description = "A variable to store the module output"
+  default     = module.example.example_output
+}
+
+# Use the variable
+output "assigned_variable" {
+  value = var.example_variable
+}
+
+
+---
+
+3. Result:
+
+When you run terraform apply, the assigned_variable output will display the value from the module's output.
+
+
+
+
+
+---
+
+Important Notes
+
+1. Direct Reference: In Terraform, it's common to directly reference the module output where needed, instead of assigning it to a variable unless absolutely necessary. For example:
+
+output "direct_output" {
+  value = module.example.example_output
+}
+
+This is simpler unless the value needs to be reused or manipulated elsewhere.
+
+
+2. Dynamic Assignment: If the variable assignment is dynamic, you may need to compute or manipulate the value using locals or directly reference it within resource definitions.
+
+
+
+Let me know if you have additional use cases or need further clarification!
+
