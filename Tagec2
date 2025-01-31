@@ -1,0 +1,51 @@
+Here’s a Terraform script that creates AWS CloudWatch alarms for EC2 instances based on a specific tag. The alarm triggers if CPU utilization exceeds a specified threshold.
+
+Terraform Code:
+
+provider "aws" {
+  region = "us-east-1"  # Change as needed
+}
+
+# Fetch EC2 instances with a specific tag
+data "aws_instances" "tagged_instances" {
+  filter {
+    name   = "tag:Environment"
+    values = ["Production"]  # Change this to the desired tag key-value pair
+  }
+}
+
+# Create CloudWatch Alarm for each instance
+resource "aws_cloudwatch_metric_alarm" "cpu_utilization_alarm" {
+  count               = length(data.aws_instances.tagged_instances.ids)
+  alarm_name          = "CPUUtilizationAlarm-${element(data.aws_instances.tagged_instances.ids, count.index)}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80  # Adjust threshold as needed
+  alarm_description   = "Alarm when CPU utilization exceeds 80% for instance ${element(data.aws_instances.tagged_instances.ids, count.index)}"
+  alarm_actions       = ["arn:aws:sns:us-east-1:123456789012:MyTopic"]  # Replace with SNS Topic ARN
+  dimensions = {
+    InstanceId = element(data.aws_instances.tagged_instances.ids, count.index)
+  }
+}
+
+Explanation:
+
+1. Fetch EC2 Instances: Uses data "aws_instances" to get all instances with the tag Environment=Production.
+
+
+2. Loop through Instances: The count parameter ensures a separate CloudWatch alarm is created for each instance.
+
+
+3. Create CloudWatch Alarm: The alarm triggers if CPU utilization exceeds 80% for two consecutive 5-minute periods.
+
+
+4. SNS Notification: The alarm can send notifications to an SNS topic.
+
+
+
+Let me know if you need modifications!
+
