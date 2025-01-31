@@ -1,0 +1,80 @@
+You can use the tomap function in Terraform to format the output as a map of EC2 instance IDs with their corresponding tag names and values. Here's how you can do it:
+
+
+---
+
+Terraform Code to Output EC2 Tags using tomap
+
+provider "aws" {
+  region = "us-east-1"  # Change as needed
+}
+
+# Fetch EC2 instances with a specific tag
+data "aws_instances" "tagged_instances" {
+  filter {
+    name   = "tag:Environment"
+    values = ["Production"]  # Change this to the desired tag key-value pair
+  }
+}
+
+# Fetch instance details to access their tags
+data "aws_instance" "tagged_instance_details" {
+  count       = length(data.aws_instances.tagged_instances.ids)
+  instance_id = element(data.aws_instances.tagged_instances.ids, count.index)
+}
+
+# Output EC2 instance tags as a map
+output "ec2_instance_tags" {
+  value = tomap({
+    for instance in data.aws_instance.tagged_instance_details :
+    instance.id => instance.tags
+  })
+  description = "Map of EC2 Instance IDs with their tag names and values"
+}
+
+
+---
+
+Explanation:
+
+1. Fetch EC2 Instances:
+
+Uses data "aws_instances" to filter EC2 instances with a specific tag (Environment=Production).
+
+
+
+2. Get Tags for Each Instance:
+
+Uses data "aws_instance" to retrieve details (including tags) for each instance.
+
+
+
+3. Format Output Using tomap:
+
+The tomap function ensures the output is a map structure.
+
+The for loop iterates over each instance, mapping instance.id to instance.tags.
+
+
+
+
+
+---
+
+Example Output:
+
+If you have two instances (i-12345678 and i-87654321) with different tags, Terraform will print:
+
+ec2_instance_tags = {
+  "i-12345678" = {
+    "Name" = "WebServer1"
+    "Environment" = "Production"
+  },
+  "i-87654321" = {
+    "Name" = "AppServer"
+    "Environment" = "Production"
+  }
+}
+
+Let me know if you need any modifications!
+
