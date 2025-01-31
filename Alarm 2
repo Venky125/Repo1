@@ -1,0 +1,81 @@
+To create a CloudWatch alarm for CPU utilization on all running EC2 instances, we need to:
+
+1. Fetch all running EC2 instances using Terraform's data source.
+
+
+2. Dynamically create alarms for each instance using for_each.
+
+
+
+
+---
+
+Terraform Code:
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Fetch all running EC2 instances
+data "aws_instances" "running_instances" {
+  filter {
+    name   = "instance-state-name"
+    values = ["running"]
+  }
+}
+
+# Create an SNS topic for CloudWatch alarms
+resource "aws_sns_topic" "cpu_alarm_topic" {
+  name = "cpu_utilization_alarm_topic"
+}
+
+# Create a CloudWatch Alarm for each running EC2 instance
+resource "aws_cloudwatch_metric_alarm" "cpu_utilization_alarm" {
+  for_each           = toset(data.aws_instances.running_instances.ids) # Loop through instance IDs
+  alarm_name         = "HighCPUUtilizationAlarm-${each.key}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods = 2
+  metric_name        = "CPUUtilization"
+  namespace          = "AWS/EC2"
+  period             = 300
+  statistic          = "Average"
+  threshold          = 80 # Change threshold as needed
+  alarm_description  = "Triggers when CPU utilization exceeds 80% for ${each.key}."
+  alarm_actions      = [aws_sns_topic.cpu_alarm_topic.arn]
+
+  dimensions = {
+    InstanceId = each.key
+  }
+}
+
+
+---
+
+How This Works:
+
+The data "aws_instances" block fetches all running EC2 instances.
+
+The for_each in aws_cloudwatch_metric_alarm loops through all instance IDs.
+
+Each EC2 instance gets its own CloudWatch alarm.
+
+SNS topic is used for notifications when the alarm is triggered.
+
+
+
+---
+
+Next Steps:
+
+1. Deploy this Terraform code using:
+
+terraform init
+terraform apply
+
+
+2. Subscribe to the SNS topic to receive alerts via email or SMS.
+
+
+
+Would you like to add different thresholds per instance type or notify specific teams per instance?
+
