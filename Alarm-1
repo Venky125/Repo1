@@ -1,0 +1,72 @@
+To check for CPU utilization in AWS CloudWatch and create an alarm if the metric exists, follow these Terraform steps:
+
+
+---
+
+Terraform Code:
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+# SNS topic for CloudWatch Alarm notifications
+resource "aws_sns_topic" "cpu_alarm_topic" {
+  name = "cpu_utilization_alarm_topic"
+}
+
+# CloudWatch Alarm for CPU Utilization
+resource "aws_cloudwatch_metric_alarm" "cpu_utilization_alarm" {
+  alarm_name          = "HighCPUUtilizationAlarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80 # Change this threshold as needed
+  alarm_description   = "Triggers when CPU utilization exceeds 80%."
+  alarm_actions       = [aws_sns_topic.cpu_alarm_topic.arn]
+  dimensions = {
+    InstanceId = "i-1234567890abcdef0" # Replace with your EC2 instance ID
+  }
+}
+
+
+---
+
+Explanation:
+
+This Terraform code creates a CloudWatch alarm that monitors CPU utilization for an EC2 instance.
+
+If CPU usage exceeds 80% for two evaluation periods, the alarm triggers.
+
+An SNS topic is created to notify users when the alarm is triggered.
+
+The alarm is tied to a specific EC2 instance (InstanceId in dimensions).
+
+You can replace the InstanceId dynamically using Terraform data sources.
+
+
+
+---
+
+Optional: Dynamically Fetch EC2 Instance ID
+
+If you want to dynamically fetch the latest running EC2 instance, use:
+
+data "aws_instances" "running_instances" {
+  filter {
+    name   = "instance-state-name"
+    values = ["running"]
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "cpu_utilization_alarm" {
+  alarm_name = "HighCPUUtilizationAlarm"
+  dimensions = {
+    InstanceId = data.aws_instances.running_instances.ids[0] # Uses the first running instance
+  }
+}
+
+Would you like additional modifications, such as multiple instances or different metrics?
+
