@@ -1,0 +1,72 @@
+You can use Terraform's data sources to filter EC2 instances based on a specific tag, store the instance IDs in a variable, and print them as output. Below is the complete Terraform script to achieve this.
+
+
+---
+
+Terraform Code:
+
+provider "aws" {
+  region = "us-east-1"  # Change this to your desired AWS region
+}
+
+# Define the tag key and value to filter instances
+variable "filter_tag_key" {
+  default = "Environment"  # Change this to your desired tag key
+}
+
+variable "filter_tag_value" {
+  default = "Production"  # Change this to your desired tag value
+}
+
+# Fetch all EC2 instance IDs
+data "aws_instances" "filtered" {
+  filter {
+    name   = "tag:${var.filter_tag_key}"
+    values = [var.filter_tag_value]
+  }
+}
+
+# Store filtered instance IDs in a variable
+variable "filtered_instance_ids" {
+  default = []
+}
+
+locals {
+  instance_ids = data.aws_instances.filtered.ids
+}
+
+# Output the stored EC2 instance IDs
+output "filtered_ec2_instances" {
+  value = local.instance_ids
+}
+
+
+---
+
+How It Works:
+
+1. aws_instances Data Source: Filters EC2 instances based on a specified tag key and value.
+
+
+2. Variables filter_tag_key and filter_tag_value: Define which tag to filter EC2 instances by.
+
+
+3. locals Block: Stores the filtered instance IDs.
+
+
+4. Output Block: Prints the instance IDs.
+
+
+
+
+---
+
+How to Run:
+
+terraform init
+terraform apply
+
+This will output the list of EC2 instance IDs that match the specified tag.
+
+Let me know if you need modifications!
+
