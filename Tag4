@@ -1,0 +1,117 @@
+To achieve this in Terraform, you need to:
+
+1. Fetch EC2 instances and their tags using a data source
+
+
+2. Filter instances with a specific tag
+
+
+3. Check if a specific CloudWatch metric exists
+
+
+4. Create an alarm if the metric exists for the matched instance
+
+
+
+
+---
+
+Terraform Code for This Requirement
+
+provider "aws" {
+  region = "us-east-1"  # Change this as needed
+}
+
+# Step 1: Fetch EC2 instances and their tags
+data "aws_instances" "all" {
+  instance_state_names = ["running"]
+}
+
+data "aws_instance" "filtered" {
+  for_each = toset(data.aws_instances.all.ids)
+
+  instance_id = each.value
+}
+
+# Step 2: Filter instances based on a specific tag
+locals {
+  target_tag = "Environment"
+  target_value = "Production"
+  
+  matching_instances = {
+    for id, instance in data.aws_instance.filtered :
+    id => instance.tags if lookup(instance.tags, local.target_tag, "") == local.target_value
+  }
+}
+
+# Step 3: Define a CloudWatch metric filter for each matched instance
+data "aws_cloudwatch_metric_data" "cpu_utilization" {
+  for_each = local.matching_instances
+
+  metric_query {
+    id          = "m1"
+    metric {
+      namespace   = "AWS/EC2"
+      metric_name = "CPUUtilization"
+      period      = 300
+      stat        = "Average"
+      dimensions = {
+        InstanceId = each.value.id
+      }
+    }
+  }
+}
+
+# Step 4: Create an alarm if the metric exists
+resource "aws_cloudwatch_metric_alarm" "cpu_alarm" {
+  for_each = { for k, v in data.aws_cloudwatch_metric_data.cpu_utilization : k => v if length(v.values) > 0 }
+
+  alarm_name          = "High_CPU_Alarm_${each.key}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Triggers when CPU usage exceeds 80%"
+  dimensions = {
+    InstanceId = each.key
+  }
+  alarm_actions = ["arn:aws:sns:us-east-1:123456789012:cpu-alerts"]
+}
+
+
+---
+
+Explanation of the Steps:
+
+1. Fetch running EC2 instances using aws_instances and aws_instance data sources.
+
+
+2. Filter instances that match a specific tag (e.g., Environment=Production).
+
+
+3. Check if the CPUUtilization metric exists for each matched instance using aws_cloudwatch_metric_data.
+
+
+4. Create a CloudWatch alarm only for instances where the metric exists.
+
+
+
+
+---
+
+Assumptions:
+
+The tag name to filter is "Environment" with value "Production".
+
+The metric name to check is "CPUUtilization".
+
+The alarm triggers when CPU usage exceeds 80% for two consecutive periods.
+
+The alarm sends notifications to an SNS topic (cpu-alerts).
+
+
+Would you like modifications, such as different tags, metrics, or thresholds?
+
