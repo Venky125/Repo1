@@ -1,0 +1,71 @@
+You can use Terraform's aws_instances and aws_instance data sources to retrieve EC2 instances and filter them based on a specific tag. Below is the Terraform code that will list all instances and print their names if they contain a specific tag.
+
+
+---
+
+Terraform Code:
+
+provider "aws" {
+  region = "us-east-1"  # Change this to your desired AWS region
+}
+
+# Fetch all EC2 instance IDs
+data "aws_instances" "all" {}
+
+# Fetch detailed information for each instance
+data "aws_instance" "instance" {
+  for_each    = toset(data.aws_instances.all.ids)
+  instance_id = each.value
+}
+
+# Define the tag key and value to match
+variable "target_tag_key" {
+  default = "Environment"  # Change this to your desired tag key
+}
+
+variable "target_tag_value" {
+  default = "Production"  # Change this to your desired tag value
+}
+
+# Filter instances based on the specific tag and print their names
+output "filtered_ec2_instances" {
+  value = [
+    for instance in data.aws_instances.all.ids : {
+      id    = instance
+      name  = lookup(data.aws_instance.instance[instance].tags, "Name", "No Name")
+      state = data.aws_instance.instance[instance].instance_state
+    }
+    if lookup(data.aws_instance.instance[instance].tags, var.target_tag_key, "") == var.target_tag_value
+  ]
+}
+
+
+---
+
+How It Works:
+
+1. aws_instances Data Source: Retrieves all EC2 instances in the region.
+
+
+2. aws_instance Data Source: Fetches detailed information, including tags and state, for each instance.
+
+
+3. Tag Filtering: The output filters instances that contain the specified tag key and value.
+
+
+4. Output: Displays the instance ID, Name tag (if present), and instance state.
+
+
+
+
+---
+
+How to Run:
+
+terraform init
+terraform apply
+
+This will print the names of instances that match the specified tag.
+
+Let me know if you need further customization!
+
