@@ -1,0 +1,183 @@
+To collect and send metrics to AWS CloudWatch using StatsD and Collectd in Terraform, you need to:
+
+1. Provision an EC2 instance to run StatsD and Collectd.
+
+
+2. Install and configure StatsD and Collectd to forward metrics to CloudWatch.
+
+
+3. Use Terraform to define the infrastructure and install necessary software.
+
+
+
+Terraform Code to Set Up StatsD and Collectd on an EC2 Instance
+
+This Terraform script:
+
+Creates an EC2 instance
+
+Installs CloudWatch Agent, StatsD, and Collectd
+
+Configures them to push metrics to AWS CloudWatch
+
+
+
+---
+
+main.tf (Terraform Configuration)
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "metrics_server" {
+  ami           = "ami-0c55b159cbfafe1f0"  # Amazon Linux 2 AMI (Check latest)
+  instance_type = "t2.micro"
+
+  user_data = <<-EOF
+              #!/bin/bash
+              # Update and install necessary packages
+              yum update -y
+              yum install -y amazon-cloudwatch-agent collectd
+
+              # Install Node.js (required for StatsD)
+              curl -sL https://rpm.nodesource.com/setup_14.x | bash -
+              yum install -y nodejs
+
+              # Install StatsD
+              git clone https://github.com/etsy/statsd.git /opt/statsd
+              cd /opt/statsd
+              npm install
+
+              # Configure StatsD
+              cat <<EOT > /opt/statsd/localConfig.js
+              {
+                graphitePort: 2003,
+                graphiteHost: "127.0.0.1",
+                port: 8125,
+                backends: [ "./backends/console", "./backends/cloudwatch" ],
+                cloudwatch: {
+                  namespace: "CustomStatsD",
+                  region: "us-east-1"
+                }
+              }
+              EOT
+
+              # Configure Collectd
+              cat <<EOT > /etc/collectd.conf
+              LoadPlugin syslog
+              LoadPlugin cpu
+              LoadPlugin memory
+              LoadPlugin load
+              LoadPlugin network
+
+              <Plugin network>
+                Server "127.0.0.1" "25826"
+              </Plugin>
+              EOT
+
+              # Configure CloudWatch Agent
+              cat <<EOT > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+              {
+                "agent": {
+                  "metrics_collection_interval": 60,
+                  "logfile": "/var/log/amazon-cloudwatch-agent.log"
+                },
+                "metrics": {
+                  "append_dimensions": {
+                    "InstanceId": "\${aws:InstanceId}"
+                  },
+                  "metrics_collected": {
+                    "cpu": {
+                      "measurement": ["cpu_usage_idle"],
+                      "metrics_collection_interval": 60
+                    },
+                    "mem": {
+                      "measurement": ["mem_used_percent"],
+                      "metrics_collection_interval": 60
+                    },
+                    "disk": {
+                      "measurement": ["disk_used_percent"],
+                      "metrics_collection_interval": 60
+                    }
+                  }
+                }
+              }
+              EOT
+
+              # Start Services
+              nohup node /opt/statsd/stats.js /opt/statsd/localConfig.js &
+              systemctl restart collectd
+              amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+              EOF
+
+  tags = {
+    Name = "Metrics-Server"
+  }
+}
+
+
+---
+
+Explanation
+
+1. Provision EC2 Instance
+
+Uses Amazon Linux 2
+
+Installs required packages (CloudWatch Agent, Collectd, Node.js for StatsD)
+
+
+
+2. Install and Configure StatsD
+
+Clones the StatsD GitHub repository
+
+Configures it to send metrics to AWS CloudWatch
+
+
+
+3. Configure Collectd
+
+Enables plugins to collect CPU, memory, and load metrics
+
+Sends collected metrics to StatsD
+
+
+
+4. Configure CloudWatch Agent
+
+Fetches metrics from StatsD and Collectd
+
+Pushes system performance metrics (CPU, memory, disk) to CloudWatch
+
+
+
+
+
+---
+
+Apply Terraform Code
+
+Run these commands:
+
+terraform init
+terraform apply -auto-approve
+
+
+---
+
+Verifying Metrics in AWS CloudWatch
+
+1. Open AWS Console → CloudWatch
+
+
+2. Navigate to Metrics → CustomStatsD (for StatsD)
+
+
+3. Navigate to EC2 → Per-Instance Metrics (for Collectd metrics)
+
+
+
+This setup will now collect system metrics and send custom application metrics via StatsD to AWS CloudWatch. Let me know if you need modifications!
+
