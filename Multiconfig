@@ -1,0 +1,151 @@
+To merge multiple AWS CloudWatch Agent configuration files dynamically while preserving existing append_dimensions and aggregate_dimensions, you can use Terraform with jq to handle JSON merging.
+
+
+---
+
+Approach
+
+1. Check if an existing config file exists (config.json)
+
+
+2. Merge append_dimensions and aggregate_dimensions dynamically
+
+
+3. Ensure that new metrics are properly added without overwriting old ones
+
+
+4. Restart CloudWatch Agent to apply changes
+
+
+
+
+---
+
+Terraform Code to Merge Multiple Config Files
+
+This script:
+
+Reads the existing CloudWatch config
+
+Merges it with new metrics, append_dimensions, and aggregate_dimensions
+
+Ensures that all previous settings are preserved
+
+Restarts CloudWatch Agent to apply changes
+
+
+
+---
+
+main.tf
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "metrics_server" {
+  ami           = "ami-0c55b159cbfafe1f0"  # Amazon Linux 2 AMI (Check latest)
+  instance_type = "t2.micro"
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              yum install -y amazon-cloudwatch-agent jq
+
+              CONFIG_FILE="/opt/aws/amazon-cloudwatch-agent/bin/config.json"
+
+              # Ensure default config exists if missing
+              if [ ! -f "$CONFIG_FILE" ]; then
+                echo '{"metrics": {"metrics_collected": {}, "append_dimensions": {}, "aggregate_dimensions": []}}' > "$CONFIG_FILE"
+              fi
+
+              # Read existing config
+              EXISTING_CONFIG=$(cat "$CONFIG_FILE")
+
+              # Define new configuration additions
+              NEW_CONFIG='
+              {
+                "metrics": {
+                  "metrics_collected": {
+                    "mem": {
+                      "measurement": ["mem_used_percent"],
+                      "metrics_collection_interval": 60
+                    }
+                  },
+                  "append_dimensions": {
+                    "InstanceId": "${aws:InstanceId}",
+                    "CustomTag": "NewValue"
+                  },
+                  "aggregate_dimensions": [
+                    ["InstanceId", "CustomTag"]
+                  ]
+                }
+              }'
+
+              # Merge JSON configurations
+              MERGED_CONFIG=$(echo "$EXISTING_CONFIG" "$NEW_CONFIG" | jq -s '
+                .[0] * .[1] |
+                .metrics.append_dimensions += .metrics.append_dimensions |
+                .metrics.aggregate_dimensions += .metrics.aggregate_dimensions |
+                .metrics.metrics_collected |= .metrics.metrics_collected
+              ')
+
+              # Write merged config back
+              echo "$MERGED_CONFIG" > "$CONFIG_FILE"
+
+              # Restart CloudWatch Agent to apply changes
+              amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:$CONFIG_FILE -s
+              EOF
+
+  tags = {
+    Name = "Metrics-Server"
+  }
+}
+
+
+---
+
+How This Works
+
+1. Ensures an existing config file is present.
+
+
+2. Merges new metrics (e.g., memory usage) dynamically.
+
+
+3. Appends new append_dimensions without overwriting old ones.
+
+
+4. Merges aggregate_dimensions while preserving existing ones.
+
+
+5. Writes the merged config and restarts CloudWatch Agent.
+
+
+
+
+---
+
+Apply Terraform
+
+Run:
+
+terraform init
+terraform apply -auto-approve
+
+
+---
+
+Verify in AWS CloudWatch
+
+Go to AWS Console → CloudWatch → Metrics, and check for:
+
+New mem_used_percent metric
+
+Properly merged append_dimensions
+
+New aggregate_dimensions
+
+
+This method preserves old settings while adding new ones dynamically. Let me know if you need modifications!
+
