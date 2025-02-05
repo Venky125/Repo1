@@ -1,0 +1,62 @@
+1. Kafka Cluster
+
+A Kafka cluster is a group of Kafka brokers working together to distribute and manage data streams. It provides scalability, fault tolerance, and high availability.
+
+Each broker (server) in the cluster stores and serves data.
+
+Producers send data to the cluster, and consumers read from it.
+
+The cluster manages metadata (like topics, partitions, and replicas) using ZooKeeper (old) or KRaft (new).
+
+
+
+---
+
+2. Partitioning in Kafka
+
+A partition is a way to split a Kafka topic into smaller parts, allowing parallelism and scalability.
+
+Each topic consists of multiple partitions.
+
+Messages within a partition are ordered, but across partitions, there is no global ordering.
+
+Kafka assigns partitions to brokers for load balancing.
+
+
+Why Partitioning?
+
+Enables parallel processing (multiple consumers can read different partitions).
+
+Distributes the load across multiple brokers.
+
+Helps in fault tolerance when combined with replication.
+
+
+
+---
+
+3. Replication in Kafka
+
+Replication ensures fault tolerance by keeping multiple copies of data across brokers.
+
+Each partition has one leader and multiple followers (replicas).
+
+If the leader broker fails, a follower becomes the new leader.
+
+Replication is controlled by the replication factor (e.g., replication factor = 3 means 3 copies of each partition).
+
+
+Key Roles in Replication:
+
+Leader – Handles all read and write requests for a partition.
+
+Follower – Syncs data from the leader and takes over if the leader fails.
+
+
+
+---
+
+Summary Table
+
+Partitioning helps with scalability, and replication ensures high availability in a Kafka cluster.
+
