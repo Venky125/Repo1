@@ -1,0 +1,33 @@
+In Apache Kafka, KRaft (Kafka Raft) is a new metadata management system that replaces ZooKeeper for managing Kafka's cluster metadata.
+
+Key Features of KRaft in Kafka:
+
+1. ZooKeeper-Free Architecture – KRaft eliminates the need for ZooKeeper, simplifying deployment and reducing operational complexity.
+
+
+2. Raft-Based Consensus – Uses the Raft consensus algorithm to ensure high availability and consistency of metadata across Kafka brokers.
+
+
+3. Better Scalability – KRaft allows Kafka to scale to larger clusters with lower metadata overhead.
+
+
+4. Improved Stability & Performance – Reduces metadata update latencies and enhances the broker failover process.
+
+
+5. Single Process Mode – Kafka brokers can now manage metadata within the Kafka process itself, removing dependency on an external coordination service.
+
+
+
+Why Kafka Moved to KRaft?
+
+ZooKeeper introduced performance bottlenecks as Kafka clusters grew.
+
+Managing metadata separately in ZooKeeper created operational complexities.
+
+Raft provides a simpler, more scalable way to maintain consensus.
+
+
+KRaft Mode vs. ZooKeeper Mode
+
+KRaft is the future of Kafka metadata management, and starting from Kafka 3.3+, KRaft is production-ready, with plans to fully remove ZooKeeper support in future releases.
+
