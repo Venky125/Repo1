@@ -1,0 +1,162 @@
+To install OpenTelemetry on a Linux system and collect metrics and traces using AWS CloudWatch Agent, follow these steps:
+
+
+---
+
+1. Install AWS CloudWatch Agent
+
+AWS CloudWatch Agent helps in collecting metrics and logs.
+
+Amazon Linux / Ubuntu / Debian
+
+sudo yum install -y amazon-cloudwatch-agent  # Amazon Linux / RHEL
+sudo apt install -y amazon-cloudwatch-agent  # Ubuntu / Debian
+
+Start and Enable the Agent
+
+sudo systemctl enable amazon-cloudwatch-agent
+sudo systemctl start amazon-cloudwatch-agent
+
+
+---
+
+2. Install OpenTelemetry Collector
+
+The OpenTelemetry Collector receives traces and metrics before exporting them to AWS.
+
+Download and Install
+
+sudo wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/latest/download/otelcol-linux-amd64 -O /usr/local/bin/otelcol
+sudo chmod +x /usr/local/bin/otelcol
+
+Verify Installation
+
+otelcol --version
+
+
+---
+
+3. Configure AWS CloudWatch Agent for Metrics
+
+Create the CloudWatch Agent configuration file:
+
+sudo nano /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+Paste the following configuration:
+
+{
+    "metrics": {
+        "metrics_collected": {
+            "mem": {
+                "measurement": ["mem_used_percent"]
+            },
+            "cpu": {
+                "measurement": ["cpu_usage_user", "cpu_usage_system"]
+            }
+        }
+    },
+    "logs": {
+        "logs_collected": {
+            "files": {
+                "collect_list": [
+                    {
+                        "file_path": "/var/log/syslog",
+                        "log_group_name": "syslog",
+                        "log_stream_name": "{instance_id}"
+                    }
+                ]
+            }
+        }
+    }
+}
+
+Save and restart the CloudWatch Agent:
+
+sudo systemctl restart amazon-cloudwatch-agent
+
+
+---
+
+4. Configure OpenTelemetry Collector
+
+Create the configuration file:
+
+sudo nano /etc/otel-config.yaml
+
+Paste the following:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  awsxray:
+  awsemf:
+    namespace: "MyApp/Metrics"
+    log_group_name: "/aws/otel/application-metrics"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      exporters: [awsemf]
+
+
+---
+
+5. Run OpenTelemetry Collector
+
+Start the OpenTelemetry Collector manually:
+
+otelcol --config /etc/otel-config.yaml
+
+To run it as a background service:
+
+sudo nano /etc/systemd/system/otelcol.service
+
+Paste:
+
+[Unit]
+Description=OpenTelemetry Collector
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/otelcol --config /etc/otel-config.yaml
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+
+Save and start the service:
+
+sudo systemctl enable otelcol
+sudo systemctl start otelcol
+
+
+---
+
+6. Verify OpenTelemetry Data in AWS
+
+Go to AWS X-Ray → Check traces.
+
+Go to AWS CloudWatch → Check metrics under MyApp/Metrics.
+
+
+
+---
+
+Next Steps
+
+Add custom instrumentation to your applications using OpenTelemetry SDKs.
+
+Configure CloudWatch logs for more insights.
+
+
+Would you like help with specific application setup?
+
