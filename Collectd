@@ -1,0 +1,141 @@
+To install and configure StatsD and CollectD on a Linux system for AWS CloudWatch, follow these steps:
+
+
+---
+
+Step 1: Install StatsD
+
+StatsD is a network daemon for collecting and aggregating metrics.
+
+For Ubuntu/Debian
+
+sudo apt update
+sudo apt install -y nodejs npm
+sudo npm install -g statsd
+
+For RHEL/CentOS
+
+sudo yum install -y epel-release
+sudo yum install -y nodejs npm
+sudo npm install -g statsd
+
+Configure StatsD
+
+1. Navigate to the StatsD configuration directory:
+
+cd /usr/local/lib/node_modules/statsd
+
+
+2. Copy the sample configuration file:
+
+cp exampleConfig.js localConfig.js
+
+
+3. Edit the config file (localConfig.js):
+
+nano localConfig.js
+
+Modify the following lines:
+
+{
+    backends: ["aws-cloudwatch-backend"],
+    cloudwatch: {
+        namespace: "CustomMetrics",
+        region: "us-east-1"
+    }
+}
+
+
+4. Install AWS CloudWatch backend:
+
+sudo npm install statsd-cloudwatch-backend
+
+
+5. Start StatsD:
+
+statsd /usr/local/lib/node_modules/statsd/localConfig.js
+
+
+
+
+---
+
+Step 2: Install CollectD
+
+CollectD is used to collect system and application performance metrics.
+
+For Ubuntu/Debian
+
+sudo apt update
+sudo apt install -y collectd
+
+For RHEL/CentOS
+
+sudo yum install -y collectd
+
+Configure CollectD
+
+1. Open the configuration file:
+
+sudo nano /etc/collectd/collectd.conf
+
+
+2. Add or modify the following settings:
+
+LoadPlugin network
+<Plugin network>
+    Server "127.0.0.1" "8125"
+</Plugin>
+
+
+3. Restart CollectD:
+
+sudo systemctl restart collectd
+sudo systemctl enable collectd
+
+
+
+
+---
+
+Step 3: Send Metrics to CloudWatch
+
+AWS provides a CloudWatch plugin for CollectD.
+
+1. Install the AWS SDK:
+
+sudo apt install -y python3-pip
+pip3 install awscli boto3
+
+
+2. Create an IAM user with CloudWatchAgentServerPolicy permissions.
+
+
+3. Configure AWS CLI with IAM credentials:
+
+aws configure
+
+
+4. Install the AWS CloudWatch agent:
+
+sudo apt install -y amazon-cloudwatch-agent
+
+
+5. Start the agent:
+
+sudo systemctl start amazon-cloudwatch-agent
+sudo systemctl enable amazon-cloudwatch-agent
+
+
+
+
+---
+
+Verify Metrics
+
+Check if StatsD and CollectD are sending metrics:
+
+aws cloudwatch list-metrics --namespace "CustomMetrics"
+
+This setup ensures StatsD collects application-level metrics and CollectD gathers system metrics, both of which can be sent to AWS CloudWatch. Let me know if you need any modifications!
+
