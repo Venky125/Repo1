@@ -1,0 +1,105 @@
+To register an RHEL (Red Hat Enterprise Linux) system with the Red Hat Subscription Manager (RHSM) and get access to Red Hat repositories, follow these steps:
+
+
+---
+
+Step 1: Verify Subscription Manager is Installed
+
+sudo yum install -y subscription-manager
+
+
+---
+
+Step 2: Register the System
+
+Use your Red Hat Customer Portal credentials:
+
+sudo subscription-manager register --username=your-username --password=your-password
+
+If successful, you’ll see a message:
+"The system has been registered with ID: XXXXX"
+
+If using an activation key instead of a password, run:
+
+sudo subscription-manager register --activationkey=your-key --org=your-org-id
+
+
+
+---
+
+Step 3: Attach a Subscription
+
+Find available subscriptions:
+
+sudo subscription-manager list --available
+
+Attach a subscription:
+
+sudo subscription-manager attach --auto
+
+OR manually attach a specific subscription:
+
+sudo subscription-manager attach --pool=POOL_ID
+
+(Replace POOL_ID with the actual pool ID from the previous command.)
+
+
+---
+
+Step 4: Verify Subscription Status
+
+sudo subscription-manager list --consumed
+
+Check if repositories are enabled:
+
+sudo subscription-manager repos --list-enabled
+
+
+---
+
+Step 5: Enable Required Repositories
+
+Enable EPEL and RHEL repositories:
+
+sudo subscription-manager repos --enable=rhel-7-server-rpms
+sudo subscription-manager repos --enable=rhel-7-server-extras-rpms
+
+(Replace rhel-7 with rhel-8 or rhel-9 if using a newer version.)
+
+
+---
+
+Step 6: Update the System
+
+sudo yum clean all
+sudo yum makecache
+sudo yum update -y
+
+
+---
+
+Step 7: Verify Access to Red Hat Packages
+
+Try installing a package:
+
+sudo yum install -y vim
+
+If the system is properly registered, the installation should work.
+
+
+---
+
+Unregister the System (If Needed)
+
+To remove a system from Red Hat Subscription Manager:
+
+sudo subscription-manager unregister
+sudo subscription-manager clean
+
+This is useful if switching subscriptions or troubleshooting.
+
+
+---
+
+Let me know if you need more details!
+
