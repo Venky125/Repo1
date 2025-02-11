@@ -1,0 +1,61 @@
+Apologies for the confusion earlier. The issue is that block_device_mappings is not directly available in the aws_instance data source, which is causing the error. Instead, we will need to use a different approach by explicitly fetching block device details through the aws_instance resource.
+
+Here’s how we can fix it:
+
+Key Concept:
+
+You can only access the block_device_mappings by using aws_instance resources (not data sources).
+
+Since block_device_mappings is an attribute on the aws_instance resource, you need to use a dynamic resource for each EC2 instance to access its block devices.
+
+
+Solution: Use aws_instance resource to fetch device names.
+
+provider "aws" {
+  region = "us-west-2"  # Replace with your desired region
+}
+
+# Fetch the instance IDs
+data "aws_instances" "all" {}
+
+# Define an aws_instance resource for each instance ID to get block device mappings
+resource "aws_instance" "instances" {
+  for_each = toset(data.aws_instances.all.ids)
+
+  instance_id = each.value
+}
+
+# Output the device names for each instance
+output "instance_device_names" {
+  value = [
+    for instance in aws_instance.instances : {
+      instance_id = instance.id
+      device_names = [
+        for device in instance.block_device_mappings : device.device_name
+      ]
+    }
+  ]
+}
+
+Key Notes:
+
+1. resource "aws_instance" "instances": This resource is used to fetch block device mappings for each EC2 instance by specifying instance_id = each.value. Each instance is created as a resource, which allows you to fetch block_device_mappings.
+
+
+2. instance.block_device_mappings: This attribute is now available for the aws_instance resource, and you can access the device_name for each attached volume.
+
+
+
+Expected Output:
+
+The output will list the device names for all instances, and you should not encounter any errors now.
+
+Why This Works:
+
+The key difference is using the aws_instance resource (instead of a data source) to get the block device mappings.
+
+Resources have access to all instance-specific attributes like block_device_mappings, unlike data sources, which are more limited.
+
+
+Give this approach a try, and let me know if you encounter any further issues!
+
