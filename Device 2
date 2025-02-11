@@ -1,0 +1,41 @@
+The error occurs because the data.aws_instances.all data source does not directly provide a list of instances; instead, it returns an object with attributes for each instance. The solution is to properly reference each EC2 instance using a for loop over data.aws_instances.all.ids and then fetch the block device mappings for each instance. Here's the corrected Terraform code:
+
+provider "aws" {
+  region = "us-west-2"  # Replace with your desired region
+}
+
+data "aws_instances" "all" {}
+
+output "instance_device_names" {
+  value = [
+    for instance_id in data.aws_instances.all.ids : {
+      instance_id = instance_id
+      device_names = flatten([
+        for instance in data.aws_instances.all.instances : 
+        instance.id == instance_id ? [for device in instance.block_device_mappings : device.device_name] : []
+      ])
+    }
+  ]
+}
+
+Explanation:
+
+1. data.aws_instances.all.ids: This returns a list of all EC2 instance IDs.
+
+
+2. data.aws_instances.all.instances: This contains a list of all EC2 instance details, including their block_device_mappings.
+
+
+3. flatten: This is used to merge nested lists (the device names for each instance) into a single list for the output.
+
+
+4. Comparison (instance.id == instance_id): This ensures we are correctly mapping the instance ID to its respective block device mappings.
+
+
+
+Output:
+
+This will output the device names of each EC2 instance. If there are multiple volumes attached to an instance, each will be listed.
+
+Let me know if this works for you!
+
