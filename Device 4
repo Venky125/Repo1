@@ -1,0 +1,45 @@
+I see the issue now. The aws_instance data source does not expose block_device_mappings directly in the way we expect. Instead, the correct way to retrieve block device information, including the device names for each instance, is to use the aws_instance data source and reference its block_device_mappings properly. However, because block_device_mappings is a complex attribute, we need to adjust the code.
+
+Let's try again with the correct Terraform code for fetching the device names of each EC2 instance.
+
+Here's the corrected approach:
+
+provider "aws" {
+  region = "us-west-2"  # Replace with your desired region
+}
+
+# Fetch the IDs of all EC2 instances
+data "aws_instances" "all" {}
+
+# Fetch block device mappings for each EC2 instance
+data "aws_instance" "instances" {
+  for_each = toset(data.aws_instances.all.ids)
+
+  instance_id = each.value
+}
+
+# Output the device names for each instance
+output "instance_device_names" {
+  value = [
+    for instance in data.aws_instance.instances : {
+      instance_id = instance.id
+      device_names = [
+        for device in instance.block_device_mappings : device.device_name
+      ]
+    }
+  ]
+}
+
+Key Changes:
+
+data "aws_instance" "instances": Now we're using for_each to loop over each instance in the list of data.aws_instances.all.ids. Each instance is then queried individually to get its block device mappings.
+
+instance.block_device_mappings: This correctly accesses the block_device_mappings for each instance. We then extract the device_name for each attached volume.
+
+
+Output:
+
+This will output the device names associated with each EC2 instance.
+
+Let me know how this works!
+
