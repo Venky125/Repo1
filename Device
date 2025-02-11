@@ -1,0 +1,39 @@
+To get the device name of each EC2 instance, you can query the EC2 instances using the aws_instance data source and then access the block_device_mappings attribute, which will give you the device names for the attached volumes. Here's an example Terraform code to achieve this:
+
+provider "aws" {
+  region = "us-west-2"  # Replace with your desired region
+}
+
+data "aws_instances" "all" {}
+
+output "instance_device_names" {
+  value = [
+    for instance in data.aws_instances.all.ids : {
+      instance_id = instance
+      device_names = [
+        for device in data.aws_instance.all[instance].block_device_mappings : device.device_name
+      ]
+    }
+  ]
+}
+
+Explanation:
+
+data "aws_instances" "all" fetches all EC2 instances in the specified region.
+
+The block_device_mappings attribute on each EC2 instance contains the device names for the instance's attached volumes.
+
+The output block will list the device_name for each volume attached to each EC2 instance.
+
+
+Important Notes:
+
+1. block_device_mappings: This will return a list of block devices attached to the instance, and each block device will have a device_name property (like /dev/sda1 or /dev/xvda).
+
+
+2. Terraform Versions: Ensure you're using the correct syntax based on your Terraform version. This example assumes the use of Terraform 0.12+ for complex expressions.
+
+
+
+This will return a list of device names for each EC2 instance, which you can use in further Terraform resources or outputs.
+
