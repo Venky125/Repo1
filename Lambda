@@ -1,0 +1,211 @@
+Automating Config File Deployment Using AWS Lambda
+
+To automate fetching a config file from Bitbucket, storing it in AWS SSM Parameter Store, and pushing it to EC2 instances, we can use an AWS Lambda function with an event-driven approach.
+
+
+---
+
+Architecture
+
+1. Bitbucket Webhook (Optional) → Triggers an AWS Lambda function when the config file changes.
+
+
+2. Lambda Function → Fetches the config file, stores it in AWS SSM Parameter Store, and triggers SSM Run Command.
+
+
+3. SSM Run Command → Deploys the latest config file to EC2 instances.
+
+
+
+
+---
+
+Step-by-Step Implementation
+
+Step 1: Create an IAM Role for Lambda
+
+Your Lambda function needs permission to:
+
+Fetch files from Bitbucket (if private repo, use access token).
+
+Write to AWS SSM Parameter Store (ssm:PutParameter).
+
+Trigger SSM Run Command to deploy the file (ssm:SendCommand).
+
+
+Create IAM Role:
+
+1. Go to AWS IAM Console → Roles.
+
+
+2. Click Create Role → AWS Lambda.
+
+
+3. Attach the following policies:
+
+AmazonSSMFullAccess (or create a custom policy for PutParameter and SendCommand).
+
+AWSLambdaBasicExecutionRole (for CloudWatch logs).
+
+
+
+4. Click Create Role and note the Role ARN.
+
+
+
+
+---
+
+Step 2: Create AWS Lambda Function
+
+1. Go to AWS Lambda Console → Create Function.
+
+
+2. Choose Author from scratch.
+
+
+3. Set function name: UpdateCustomMetricsConfig.
+
+
+4. Runtime: Python 3.9.
+
+
+5. Select Use an existing role and choose the IAM role created earlier.
+
+
+6. Click Create Function.
+
+
+
+
+---
+
+Step 3: Add Code to Lambda
+
+Replace <BITBUCKET_ACCESS_TOKEN> and <BITBUCKET_USERNAME> with your credentials.
+
+Python Code for Lambda
+
+import json
+import requests
+import boto3
+import os
+
+# AWS Clients
+ssm_client = boto3.client('ssm')
+ssm_document_name = "AWS-RunShellScript"
+ssm_target_tag = "your-ec2-tag"
+
+# Bitbucket Config
+BITBUCKET_REPO_URL = "https://api.bitbucket.org/2.0/repositories/workspace/repository/src/main/path/to/config.yaml"
+BITBUCKET_AUTH = ('your_username', 'your_access_token')  # Use an app password for security
+
+SSM_PARAMETER_NAME = "CustomMetricsConfig"
+
+def fetch_config_file():
+    """Fetch config file from Bitbucket"""
+    response = requests.get(BITBUCKET_REPO_URL, auth=BITBUCKET_AUTH)
+    if response.status_code == 200:
+        return response.text
+    else:
+        print(f"Failed to fetch file. Status Code: {response.status_code}")
+        return None
+
+def update_ssm_parameter(config_content):
+    """Store config in AWS SSM Parameter Store"""
+    ssm_client.put_parameter(
+        Name=SSM_PARAMETER_NAME,
+        Type="String",
+        Value=config_content,
+        Overwrite=True
+    )
+
+def push_config_to_ec2():
+    """Trigger SSM Run Command to push config to EC2 instances"""
+    response = ssm_client.send_command(
+        DocumentName=ssm_document_name,
+        Targets=[{"Key": "tag:Name", "Values": [ssm_target_tag]}],
+        Parameters={"commands": [f"aws ssm get-parameter --name {SSM_PARAMETER_NAME} --query Parameter.Value --output text > /etc/custom_metrics/config.yaml"]},
+        TimeoutSeconds=30
+    )
+    print(f"SSM Command Sent: {response}")
+
+def lambda_handler(event, context):
+    """Main Lambda Function"""
+    print("Fetching config file from Bitbucket...")
+    config_content = fetch_config_file()
+    
+    if config_content:
+        print("Updating SSM Parameter Store...")
+        update_ssm_parameter(config_content)
+        
+        print("Pushing config file to EC2 instances...")
+        push_config_to_ec2()
+        
+        return {
+            "statusCode": 200,
+            "body": json.dumps("Configuration updated successfully!")
+        }
+    else:
+        return {
+            "statusCode": 500,
+            "body": json.dumps("Failed to fetch config file from Bitbucket.")
+        }
+
+
+---
+
+Step 4: Deploy and Test Lambda
+
+1. Click "Deploy" after adding the Python code.
+
+
+2. Test the Function:
+
+Click Test → Create a new test event → Name it test-event.
+
+Click Invoke.
+
+Check CloudWatch Logs for errors.
+
+
+
+3. If successful, your EC2 instances should have the latest config file.
+
+
+
+
+---
+
+Step 5: Automate with Bitbucket Webhook (Optional)
+
+If you want to trigger Lambda whenever the config file changes:
+
+1. Go to your Bitbucket Repo → Repository settings.
+
+
+2. Under Webhooks, click Add webhook.
+
+
+3. URL: Use AWS API Gateway or an AWS EventBridge rule to trigger Lambda.
+
+
+4. Event: Choose "Repository Push."
+
+
+5. Click Save.
+
+
+
+
+---
+
+Summary
+
+✅ Lambda fetches the config file from Bitbucket
+✅ Stores it in AWS SSM Parameter Store
+✅ Triggers an SSM Run Command to update EC2 instances
+✅ (Optional) Automatically runs when the config file is updated
+
+Would you like help setting up the Bitbucket Webhook or API Gateway trigger?
+
