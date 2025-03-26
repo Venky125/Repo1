@@ -1,0 +1,120 @@
+To enforce SSL encryption for your S3 bucket (mft-aws-s3-poc), you need to deny all non-HTTPS (non-SSL) requests using a bucket policy. Here’s the correct JSON policy:
+
+
+---
+
+Bucket Policy to Enforce SSL (HTTPS)
+
+1. Go to the AWS S3 Console.
+
+
+2. Select the bucket (mft-aws-s3-poc).
+
+
+3. Navigate to the Permissions tab → Click Edit under "Bucket policy".
+
+
+4. Copy and paste the following JSON policy:
+
+
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::mft-aws-s3-poc",
+                "arn:aws:s3:::mft-aws-s3-poc/*"
+            ],
+            "Condition": {
+                "Bool": {
+                    "aws:SecureTransport": "false"
+                }
+            }
+        }
+    ]
+}
+
+✅ This policy denies all requests that do not use HTTPS (SSL/TLS encryption).
+
+
+---
+
+Verify Policy is Working
+
+To test if the policy is working:
+
+1. Try accessing an object via HTTP (this should fail).
+
+
+2. Access it via HTTPS (this should succeed).
+
+
+
+Using AWS CLI to test:
+
+HTTP request (should be denied):
+
+aws s3 cp s3://mft-aws-s3-poc/testfile.txt ./ --no-sign-request --endpoint-url http://s3.amazonaws.com
+
+HTTPS request (should be allowed):
+
+aws s3 cp s3://mft-aws-s3-poc/testfile.txt ./ --no-sign-request --endpoint-url https://s3.amazonaws.com
+
+
+
+---
+
+Enable Default Encryption for S3 Objects (At Rest)
+
+To ensure all objects stored in the bucket are encrypted:
+
+1. Go to AWS S3 Console → Select mft-aws-s3-poc.
+
+
+2. Click on the Properties tab.
+
+
+3. Scroll down to Default Encryption → Click Edit.
+
+
+4. Select AES-256 (SSE-S3) or AWS Key Management Service (SSE-KMS).
+
+
+5. Click Save changes.
+
+
+
+Using AWS CLI to Enable Default Encryption
+
+aws s3api put-bucket-encryption --bucket mft-aws-s3-poc --server-side-encryption-configuration '{
+  "Rules": [
+    {
+      "ApplyServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+      }
+    }
+  ]
+}'
+
+
+---
+
+Final Checklist
+
+✅ Bucket policy enforces HTTPS (SSL).
+✅ Default encryption (SSE-S3 or SSE-KMS) is enabled for data at rest.
+✅ Tested HTTP vs HTTPS access to verify the policy.
+
+This ensures end-to-end encryption:
+
+In transit (SSL/TLS enforced by the policy).
+
+At rest (Server-side encryption enabled).
+
+
+Let me know if you need any modifications!
+
