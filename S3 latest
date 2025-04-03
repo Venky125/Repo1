@@ -1,0 +1,147 @@
+Here’s a step-by-step guide to creating an S3 bucket, assigning a role and policy, and performing basic operations like listing, copying, and deleting files using both the AWS CLI and AWS Console.
+
+
+---
+
+Step 1: Create an S3 Bucket
+
+Using AWS Console
+
+1. Go to the AWS S3 Console.
+
+
+2. Click Create bucket.
+
+
+3. Enter a unique bucket name (e.g., my-demo-bucket-123).
+
+
+4. Choose a Region (e.g., us-east-1).
+
+
+5. Block all public access (recommended for security).
+
+
+6. Enable S3 Versioning (optional for tracking file changes).
+
+
+7. Click Create bucket.
+
+
+
+Using AWS CLI
+
+aws s3 mb s3://my-demo-bucket-123 --region us-east-1
+
+
+---
+
+Step 2: Create and Assign an IAM Role
+
+Using AWS Console
+
+1. Go to IAM > Roles.
+
+
+2. Click Create role.
+
+
+3. Select AWS Service > Choose S3.
+
+
+4. Attach the AmazonS3FullAccess policy (for full access) OR create a custom policy.
+
+
+
+Custom Policy (For Limited Access)
+
+Create a policy that allows list, upload, and delete operations:
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::my-demo-bucket-123",
+        "arn:aws:s3:::my-demo-bucket-123/*"
+      ]
+    }
+  ]
+}
+
+5. Name the policy S3BasicAccess and attach it to the role.
+
+
+6. Attach the role to your EC2 instance (if required).
+
+
+
+
+---
+
+Step 3: Upload a File to S3
+
+Using AWS Console
+
+1. Go to the S3 Console.
+
+
+2. Open your bucket (my-demo-bucket-123).
+
+
+3. Click Upload, select a file, and click Upload.
+
+
+
+Using AWS CLI
+
+aws s3 cp myfile.txt s3://my-demo-bucket-123/
+
+
+---
+
+Step 4: List Files in S3 Bucket
+
+Using AWS CLI
+
+aws s3 ls s3://my-demo-bucket-123/
+
+
+---
+
+Step 5: Copy a File from One S3 Location to Another
+
+Using AWS CLI
+
+aws s3 cp s3://my-demo-bucket-123/myfile.txt s3://my-demo-bucket-123/myfile-copy.txt
+
+
+---
+
+Step 6: Delete a File from S3
+
+Using AWS CLI
+
+aws s3 rm s3://my-demo-bucket-123/myfile.txt
+
+
+---
+
+Step 7: Delete an S3 Bucket (After Emptying)
+
+Using AWS CLI
+
+aws s3 rb s3://my-demo-bucket-123 --force
+
+
+---
+
+This setup ensures secure access while allowing file operations in S3. Let me know if you need further refinements!
+
