@@ -1,0 +1,52 @@
+Creating and Deleting Directories in an S3 Bucket using AWS CLI
+
+S3 does not have a traditional directory structure like a filesystem. Instead, it uses a key-based structure, where "folders" are just prefixes in object keys.
+
+
+---
+
+Step 1: Create a "Directory" (Prefix) in S3
+
+Since S3 doesn’t support empty directories, you can simulate a directory by adding a file inside it.
+
+Using AWS CLI
+
+aws s3 cp myfile.txt s3://my-demo-bucket-123/my-folder/
+
+This will create a virtual directory called my-folder/ inside my-demo-bucket-123.
+
+To explicitly create an empty directory, you can use a placeholder file:
+
+aws s3 cp myfile.txt s3://my-demo-bucket-123/my-folder/dummy.txt
+
+
+---
+
+Step 2: List "Directories" in S3
+
+To verify the created directory:
+
+aws s3 ls s3://my-demo-bucket-123/
+
+or
+
+aws s3 ls s3://my-demo-bucket-123/my-folder/
+
+
+---
+
+Step 3: Delete a "Directory" in S3
+
+Since S3 doesn't store empty directories, you must delete all files inside a folder to remove it.
+
+Using AWS CLI
+
+aws s3 rm s3://my-demo-bucket-123/my-folder/ --recursive
+
+This will remove all objects under my-folder/, effectively deleting the folder.
+
+
+---
+
+Let me know if you need any modifications!
+
