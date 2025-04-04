@@ -1,0 +1,183 @@
+Here is the full updated AWS Systems Manager (SSM) document to check whether the CloudWatch Agent is installed and configured on both Linux and Windows instances.
+
+
+---
+
+SSM Document: CheckCloudWatchAgentStatus
+
+Features:
+
+✔ Checks if CloudWatch Agent is installed (based on the existence of the control binary).
+✔ Checks if CloudWatch Agent is configured (based on the existence of the amazon-cloudwatch-agent.toml file).
+✔ Works for both Linux and Windows.
+
+
+---
+
+SSM Document JSON
+
+{
+  "schemaVersion": "2.2",
+  "description": "Checks whether Amazon CloudWatch Agent is installed and configured on Linux and Windows EC2 instances.",
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "CheckCloudWatchLinux",
+      "precondition": {
+        "StringEquals": ["platformType", "Linux"]
+      },
+      "inputs": {
+        "runCommand": [
+          "CW_AGENT_PATH='/opt/aws/amazon-cloudwatch/bin/amazon-cloudwatch-agent-ctl'",
+          "CONFIG_PATH='/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml'",
+          "if [ -f \"$CW_AGENT_PATH\" ]; then",
+          "  echo 'CloudWatch Agent is installed';",
+          "  if [ -f \"$CONFIG_PATH\" ]; then",
+          "    echo 'CloudWatch Agent is configured';",
+          "  else",
+          "    echo 'CloudWatch Agent is not configured';",
+          "  fi",
+          "else",
+          "  echo 'CloudWatch Agent is not installed';",
+          "fi"
+        ]
+      }
+    },
+    {
+      "action": "aws:runPowerShellScript",
+      "name": "CheckCloudWatchWindows",
+      "precondition": {
+        "StringEquals": ["platformType", "Windows"]
+      },
+      "inputs": {
+        "runCommand": [
+          "$cwAgentPath = \"C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl\"",
+          "$configPath = \"C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.toml\"",
+          "if (Test-Path \"$cwAgentPath\") {",
+          "  Write-Output 'CloudWatch Agent is installed';",
+          "  if (Test-Path \"$configPath\") {",
+          "    Write-Output 'CloudWatch Agent is configured';",
+          "  } else {",
+          "    Write-Output 'CloudWatch Agent is not configured';",
+          "  }",
+          "} else {",
+          "  Write-Output 'CloudWatch Agent is not installed';",
+          "}"
+        ]
+      }
+    }
+  ]
+}
+
+
+---
+
+How to Use This SSM Document
+
+1️⃣ Create the SSM Document
+
+1. Go to AWS Console → AWS Systems Manager.
+
+
+2. Navigate to Documents → Click Create document.
+
+
+3. Enter Document name: CheckCloudWatchAgentStatus.
+
+
+4. Select Document type → Command or Session.
+
+
+5. Select Content → JSON.
+
+
+6. Copy-paste the above JSON content.
+
+
+7. Click Create document.
+
+
+
+
+---
+
+2️⃣ Run the SSM Document on Your Instances
+
+1. Go to AWS Systems Manager → Run Command.
+
+
+2. Click Run a command.
+
+
+3. In Command document, search for CheckCloudWatchAgentStatus and select it.
+
+
+4. In Targets, select:
+
+One Linux instance.
+
+One Windows instance.
+
+
+
+5. Click Run.
+
+
+6. Wait for the execution to complete.
+
+
+
+
+---
+
+3️⃣ Check the Output
+
+1. Go to the "Command ID" of the executed command.
+
+
+2. Under Targets and outputs, select each Instance ID.
+
+
+3. Click View output:
+
+Linux Output:
+
+"CloudWatch Agent is installed"
+
+"CloudWatch Agent is configured" (if configured)
+
+
+Windows Output:
+
+"CloudWatch Agent is installed"
+
+"CloudWatch Agent is configured" (if configured)
+
+
+
+
+
+
+---
+
+✅ Why This Works Correctly Now
+
+✔ Fixes Windows path validation:
+
+No .ps1 extension assumed.
+
+Uses "C:\Program Files\..." properly with Test-Path.
+
+
+✔ Fixes Linux validation:
+
+Uses [ -f "file" ] to correctly check for files.
+
+
+✔ Handles both Installation & Configuration Checks separately.
+
+
+---
+
+This should now work correctly on both Linux and Windows EC2 instances. Let me know if you face any issues!
+
