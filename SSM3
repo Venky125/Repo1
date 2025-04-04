@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Check if CloudWatch Agent is installed and configured on Linux and Windows EC2 instances",
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "CheckCloudWatchLinux",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Linux"
+        ]
+      },
+      "inputs": {
+        "runCommand": [
+          "if [ -f /opt/aws/amazon-cloudwatch/bin/amazon-cloudwatch-agent-ctl ]; then",
+          "  echo 'CloudWatch Agent is installed';",
+          "  if [ -f /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml ]; then",
+          "    echo 'CloudWatch Agent is configured';",
+          "  else",
+          "    echo 'CloudWatch Agent is not configured';",
+          "  fi",
+          "else",
+          "  echo 'CloudWatch Agent is not installed';",
+          "fi"
+        ]
+      }
+    },
+    {
+      "action": "aws:runPowerShellScript",
+      "name": "CheckCloudWatchWindows",
+      "precondition": {
+        "StringEquals": [
+          "platformType",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "runCommand": [
+          "$cwAgentPath = 'C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1'",
+          "$configPath = 'C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.toml'",
+          "if (Test-Path $cwAgentPath) {",
+          "  Write-Output 'CloudWatch Agent is installed';",
+          "  if (Test-Path $configPath) {",
+          "    Write-Output 'CloudWatch Agent is configured';",
+          "  } else {",
+          "    Write-Output 'CloudWatch Agent is not configured';",
+          "  }",
+          "} else {",
+          "  Write-Output 'CloudWatch Agent is not installed';",
+          "}"
+        ]
+      }
+    }
+  ]
+}
+
+
+Here's your AWS SSM document that checks whether the CloudWatch Agent is installed and configured on both Linux and Windows EC2 instances.
+
+How It Works:
+
+1. For Linux:
+
+Checks if /opt/aws/amazon-cloudwatch/bin/amazon-cloudwatch-agent-ctl exists to verify installation.
+
+Checks if /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml exists to verify configuration.
+
+
+
+2. For Windows:
+
+Checks if C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1 exists to verify installation.
+
+Checks if C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.toml exists to verify configuration.
+
+
+
+
+You can use this document in AWS Run Command to execute on multiple EC2 instances and check their CloudWatch Agent status. Let me know if you need any modifications!
+
