@@ -1,0 +1,107 @@
+You're right—incorrect path validation might be causing the issue. Let's ensure that the PowerShell path validation correctly identifies the CloudWatch Agent on Windows.
+
+
+---
+
+Windows Path Validation Fix
+
+In Windows PowerShell:
+
+Test-Path is used to check if a file or folder exists.
+
+Paths with spaces (C:\Program Files\...) must be enclosed in double quotes (").
+
+The CloudWatch Agent path and configuration file path should be explicitly validated.
+
+
+
+---
+
+Fixed PowerShell Commands for Windows SSM Document
+
+Checking Installation:
+
+Instead of:
+
+$cwAgentPath = 'C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1'
+
+Use:
+
+$cwAgentPath = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl"
+
+(.ps1 was incorrectly assumed; it's just amazon-cloudwatch-agent-ctl.)
+
+To validate:
+
+if (Test-Path "$cwAgentPath") {
+    Write-Output 'CloudWatch Agent is installed';
+} else {
+    Write-Output 'CloudWatch Agent is not installed';
+}
+
+Checking Configuration:
+
+Instead of:
+
+$configPath = 'C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.toml'
+
+Use:
+
+$configPath = "C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.toml"
+
+To validate:
+
+if (Test-Path "$configPath") {
+    Write-Output 'CloudWatch Agent is configured';
+} else {
+    Write-Output 'CloudWatch Agent is not configured';
+}
+
+
+---
+
+Updated Windows Section for SSM Document
+
+Replace the Windows step in your SSM document with this:
+
+{
+  "action": "aws:runPowerShellScript",
+  "name": "CheckCloudWatchWindows",
+  "precondition": {
+    "StringEquals": ["platformType", "Windows"]
+  },
+  "inputs": {
+    "runCommand": [
+      "$cwAgentPath = \"C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl\"",
+      "$configPath = \"C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.toml\"",
+      "if (Test-Path \"$cwAgentPath\") {",
+      "  Write-Output 'CloudWatch Agent is installed';",
+      "  if (Test-Path \"$configPath\") {",
+      "    Write-Output 'CloudWatch Agent is configured';",
+      "  } else {",
+      "    Write-Output 'CloudWatch Agent is not configured';",
+      "  }",
+      "} else {",
+      "  Write-Output 'CloudWatch Agent is not installed';",
+      "}"
+    ]
+  }
+}
+
+
+---
+
+Why This Fix Works
+
+1. Uses correct paths without .ps1 (as amazon-cloudwatch-agent-ctl does not have .ps1).
+
+
+2. Uses double quotes (") to handle spaces in paths.
+
+
+3. Ensures explicit file validation.
+
+
+
+Try running this updated version and let me know if it works as expected!
+
