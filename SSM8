@@ -1,0 +1,91 @@
+Good catch!
+Yes — an SSM document (YAML format) needs top-level {} ({} open and close brackets) if you are uploading it using APIs/CLI, or else AWS console automatically adds it.
+
+I'll now give you the fully correct final version with brackets:
+
+
+---
+
+FINAL Correct SSM Document
+
+{
+  "schemaVersion": "2.2",
+  "description": "Check whether CloudWatch Agent is installed and configured on Linux and Windows EC2 instances.",
+  "parameters": {},
+  "mainSteps": [
+    {
+      "name": "checkCloudWatchLinux",
+      "action": "aws:runShellScript",
+      "precondition": {
+        "StringEquals": ["platformType", "Linux"]
+      },
+      "inputs": {
+        "runCommand": [
+          "echo \"Running as user: $(whoami)\"",
+          "echo \"Checking CloudWatch Agent Installation on Linux...\"",
+          "if [ -f \"/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl\" ]; then",
+          "  echo \"CloudWatch Agent is installed.\"",
+          "else",
+          "  echo \"CloudWatch Agent is NOT installed.\"",
+          "fi",
+          "echo \"Checking CloudWatch Agent Configuration on Linux...\"",
+          "if [ -f \"/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml\" ]; then",
+          "  echo \"CloudWatch Agent is configured.\"",
+          "else",
+          "  echo \"CloudWatch Agent is NOT configured.\"",
+          "fi"
+        ]
+      }
+    },
+    {
+      "name": "checkCloudWatchWindows",
+      "action": "aws:runPowerShellScript",
+      "precondition": {
+        "StringEquals": ["platformType", "Windows"]
+      },
+      "inputs": {
+        "runCommand": [
+          "Write-Host \"Running as user: $env:USERNAME\"",
+          "Write-Host \"Checking CloudWatch Agent Installation on Windows...\"",
+          "if (Test-Path \"C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.exe\") {",
+          "  Write-Host \"CloudWatch Agent is installed.\"",
+          "} else {",
+          "  Write-Host \"CloudWatch Agent is NOT installed.\"",
+          "}",
+          "Write-Host \"Checking CloudWatch Agent Configuration on Windows...\"",
+          "if (Test-Path \"C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.toml\") {",
+          "  Write-Host \"CloudWatch Agent is configured.\"",
+          "} else {",
+          "  Write-Host \"CloudWatch Agent is NOT configured.\"",
+          "}"
+        ]
+      }
+    }
+  ]
+}
+
+
+---
+
+Explanation of the Fixes:
+
+
+---
+
+Notes for Usage:
+
+You can paste this JSON when creating a "Command or Session Document" inside AWS SSM > Documents > Create.
+
+Or use it via AWS CLI if you prefer.
+
+Once attached, target 1 Linux and 1 Windows instance to test it.
+
+Outputs will show directly in the Command output.
+
+
+
+---
+
+Would you like me to also show you how it would look if you wanted a version that outputs "SUCCESS"/"FAILURE" codes too for easy monitoring? (optional if you want to automate next steps)
+Let me know!
+
