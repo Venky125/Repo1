@@ -1,0 +1,142 @@
+Got it — let's rebuild your full SSM document correctly including:
+
+Linux: Installed and Configured check
+
+Windows: Installed and Configured check
+
+Proper quotes
+
+Proper platform targeting
+
+Correct handling of file checks
+
+
+
+---
+
+Here’s the final clean document you can directly create as a new SSM Document (YAML format):
+
+schemaVersion: "2.2"
+description: "Check whether CloudWatch Agent is installed and configured on Linux and Windows EC2 instances."
+parameters: {}
+mainSteps:
+  - name: checkCloudWatchLinux
+    action: aws:runShellScript
+    precondition:
+      StringEquals: ["platformType", "Linux"]
+    inputs:
+      runCommand:
+        - echo "Running as user: $(whoami)"
+        - echo "Checking CloudWatch Agent Installation on Linux..."
+        - if [ -f "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl" ]; then
+            echo "CloudWatch Agent is installed.";
+          else
+            echo "CloudWatch Agent is NOT installed.";
+          fi
+        - echo "Checking CloudWatch Agent Configuration on Linux..."
+        - if [ -f "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml" ]; then
+            echo "CloudWatch Agent is configured.";
+          else
+            echo "CloudWatch Agent is NOT configured.";
+          fi
+
+  - name: checkCloudWatchWindows
+    action: aws:runPowerShellScript
+    precondition:
+      StringEquals: ["platformType", "Windows"]
+    inputs:
+      runCommand:
+        - Write-Host "Running as user: $env:USERNAME"
+        - Write-Host "Checking CloudWatch Agent Installation on Windows..."
+        - if (Test-Path "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.exe") {
+            Write-Host "CloudWatch Agent is installed.";
+          } else {
+            Write-Host "CloudWatch Agent is NOT installed.";
+          }
+        - Write-Host "Checking CloudWatch Agent Configuration on Windows..."
+        - if (Test-Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.toml") {
+            Write-Host "CloudWatch Agent is configured.";
+          } else {
+            Write-Host "CloudWatch Agent is NOT configured.";
+          }
+
+
+---
+
+Important notes:
+
+Linux:
+
+Checking /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl (installed)
+
+Checking /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml (configured)
+
+
+Windows:
+
+Checking C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.exe (installed)
+
+Checking C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.toml (configured)
+
+
+
+(Notice .exe in Windows for amazon-cloudwatch-agent-ctl — it's not .ps1!)
+
+Preconditions used properly to make sure:
+
+Linux step runs only on Linux
+
+Windows step runs only on Windows
+
+
+Echo / Write-Host to print output clearly
+
+
+
+---
+
+How to Deploy This Document:
+
+1. Go to AWS Systems Manager > Documents.
+
+
+2. Click Create Document.
+
+
+3. Name it (example: CheckCloudWatchAgent).
+
+
+4. Select Document Type: Command or Session.
+
+
+5. Select Content type: YAML.
+
+
+6. Paste the above YAML and create it.
+
+
+7. Run it on your target instances by creating a Run Command execution.
+
+
+
+
+---
+
+Expected Behavior When You Run:
+
+On Linux: You should see output showing user, and "installed" / "configured" correctly.
+
+On Windows: You should see output OR step skipped if you run only on Linux.
+
+
+
+---
+
+Would you also like me to give you a ready CLI command to run it quickly via AWS CLI?
+(If yes, say so, I'll give it too!)
+
+
+---
+
+Shall I also show you how you can improve it even further — like sending the result to S3 or parameter store? (optional if you want next-level automation!)
+
