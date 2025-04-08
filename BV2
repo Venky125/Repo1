@@ -1,0 +1,125 @@
+Perfect —
+since you already have the code for checking install (Step 1: Check Install)
+and you have the code for what to do if No (Install agent) —
+I’ll now show you exactly how to structure it inside the SSM Automation Document style.
+
+You want "steps inside step" — that’s called using aws:branch action and NextStep settings.
+
+
+---
+
+Here’s how Step 1 will look (clean template):
+
+---
+schemaVersion: '0.3'
+description: >
+  Check if CloudWatch Agent is installed. If not, install it.
+
+assumeRole: "{{ AutomationAssumeRole }}"  # You can pass it as parameter if needed
+parameters:
+  InstanceId:
+    type: String
+    description: "(Required) EC2 instance id"
+
+mainSteps:
+  - name: checkCloudWatchAgentInstallation
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            if [ -f "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl" ]; then
+              echo "Installed"
+            else
+              echo "NotInstalled"
+            fi
+    outputs:
+      - Name: InstallStatus
+        Selector: "$.Payload"
+        Type: String
+
+  - name: isCloudWatchAgentInstalled
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: installCloudWatchAgent
+          Variable: "{{ checkCloudWatchAgentInstallation.InstallStatus }}"
+          StringEquals: "NotInstalled"
+        - NextStep: getOSType  # Proceed if installed
+          Variable: "{{ checkCloudWatchAgentInstallation.InstallStatus }}"
+          StringEquals: "Installed"
+
+  - name: installCloudWatchAgent
+    action: aws:configurePackage
+    inputs:
+      InstanceId: "{{ InstanceId }}"
+      Action: Install
+      Name: AmazonCloudWatchAgent
+
+  - name: getOSType
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - uname
+    outputs:
+      - Name: OSResult
+        Selector: "$.Payload"
+        Type: String
+
+
+---
+
+Explanation:
+
+First step: check if /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl file exists.
+
+Output: Either Installed or NotInstalled
+
+Branch:
+
+If NotInstalled, next step = Install it.
+
+If Installed, next step = Proceed to get OS Type.
+
+
+After installing also, next step = Get OS Type.
+
+
+
+---
+
+After that,
+
+you can do similar branch for Linux/Windows (Step 2 onwards).
+
+
+---
+
+Notes:
+
+You can merge Windows also here later (use AWS-RunPowerShellScript for Windows).
+
+Inside aws:branch, use NextStep: to control flow cleanly.
+
+We can skip unnecessary steps if already Installed/Configured.
+
+This document will automatically become modular and clean.
+
+
+
+---
+
+Now tell me —
+should I immediately continue and add Windows also inside this?
+and complete Step 1 + Step 2 + Step 3 in one clean yaml structure?
+
+(Once you approve this base structure, next steps will be faster!)
+Waiting for your GO confirmation!
+
