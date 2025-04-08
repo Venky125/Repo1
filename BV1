@@ -1,0 +1,239 @@
+Got it!
+
+So, let's handle both possibilities for point 1 safely —
+I’ll assume the Python script will either return "Yes" or "No" in stdout (standard output) — and we’ll branch based on that output string exactly.
+
+
+---
+
+Here's the Final SSM Document plan clearly:
+
+Step 1: Run Python script to check if IAM policy attached.
+(Expected output: "Yes" or "No".)
+
+Step 2: aws:branch
+
+If Yes → Success
+
+If No → proceed to attach policy.
+
+
+Step 3: Run Python script to attach the IAM policy.
+
+Step 4: Run shell/powershell commands to check if CloudWatch Agent installed.
+
+Step 5: aws:branch
+
+If Yes → Success
+
+If No → proceed to install.
+
+
+Step 6: Install CloudWatch Agent using AWS-ConfigureAWSPackage.
+
+Step 7: Run shell/powershell commands to check if CloudWatch Agent is configured.
+
+Step 8: aws:branch
+
+If Yes → Success
+
+If No → proceed to configure agent.
+
+
+Step 9: Configure agent using AmazonCloudWatch-ManageAgent.
+
+
+
+---
+
+Now here is the Final SSM Document JSON (ready for Terraform or Console import):
+
+{
+  "schemaVersion": "0.3",
+  "description": "Automation to check IAM policy, CloudWatch Agent installation and configuration. Install/configure if missing.",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "AutomationAssumeRole": {
+      "type": "String",
+      "description": "(Optional) The ARN of the role that allows Automation to perform the actions on your behalf.",
+      "default": ""
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "checkIamPolicy",
+      "action": "aws:executeScript",
+      "inputs": {
+        "Runtime": "python3.8",
+        "Handler": "check_handler",
+        "Script": "def check_handler(events, context):\n    # Your python code to check IAM Policy attachment\n    # Return 'Yes' if attached, 'No' if not\n    return {'result': 'No'}"
+      },
+      "outputs": [
+        {
+          "Name": "result",
+          "Selector": "$.Payload.result",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "branchPolicyCheck",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "checkCloudWatchInstalled",
+            "Variable": "{{ checkIamPolicy.result }}",
+            "StringEquals": "Yes"
+          }
+        ],
+        "Default": "installPolicyIfNeeded"
+      }
+    },
+    {
+      "name": "installPolicyIfNeeded",
+      "action": "aws:executeScript",
+      "inputs": {
+        "Runtime": "python3.8",
+        "Handler": "attach_handler",
+        "Script": "def attach_handler(events, context):\n    # Your python code to attach IAM Policy\n    return {'result': 'Policy Attached'}"
+      }
+    },
+    {
+      "name": "checkCloudWatchInstalled",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "Parameters": {
+          "commands": [
+            "if [ -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl ]; then echo 'Yes'; else echo 'No'; fi"
+          ],
+          "executionTimeout": ["60"]
+        },
+        "PlatformType": "Linux"
+      },
+      "outputs": [
+        {
+          "Name": "result",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "branchInstallCheck",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "checkCloudWatchConfigured",
+            "Variable": "{{ checkCloudWatchInstalled.result }}",
+            "StringEquals": "Yes"
+          }
+        ],
+        "Default": "installCloudWatchAgent"
+      }
+    },
+    {
+      "name": "installCloudWatchAgent",
+      "action": "aws:executeAutomation",
+      "inputs": {
+        "DocumentName": "AWS-ConfigureAWSPackage",
+        "Parameters": {
+          "action": ["Install"],
+          "name": ["AmazonCloudWatchAgent"]
+        }
+      }
+    },
+    {
+      "name": "checkCloudWatchConfigured",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "Parameters": {
+          "commands": [
+            "if [ -f /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.toml ]; then echo 'Yes'; else echo 'No'; fi"
+          ],
+          "executionTimeout": ["60"]
+        },
+        "PlatformType": "Linux"
+      },
+      "outputs": [
+        {
+          "Name": "result",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "branchConfigCheck",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "success",
+            "Variable": "{{ checkCloudWatchConfigured.result }}",
+            "StringEquals": "Yes"
+          }
+        ],
+        "Default": "configureCloudWatchAgent"
+      }
+    },
+    {
+      "name": "configureCloudWatchAgent",
+      "action": "aws:executeAutomation",
+      "inputs": {
+        "DocumentName": "AmazonCloudWatch-ManageAgent",
+        "Parameters": {
+          "action": ["configure"],
+          "mode": ["ec2"],
+          "optionalConfigurationLocation": [""],
+          "optionalConfigurationSource": ["ssm"],
+          "optionalRestart": ["yes"]
+        }
+      }
+    },
+    {
+      "name": "success",
+      "action": "aws:executeScript",
+      "inputs": {
+        "Runtime": "python3.8",
+        "Handler": "noop_handler",
+        "Script": "def noop_handler(events, context):\n    return {'result': 'Completed Successfully'}"
+      }
+    }
+  ]
+}
+
+
+---
+
+Notes:
+
+Linux Shell checks added.
+
+For Windows, you can create a copy with AWS-RunPowerShellScript instead of AWS-RunShellScript and update file paths accordingly.
+
+Success step is explicitly defined.
+
+IAM Policy script needs to cleanly return 'Yes' or 'No' in string form.
+
+Timeouts are 60 seconds — you can adjust based on your real-world run time.
+
+
+
+---
+
+Next:
+
+Would you like me to also give you the Windows version separately?
+(Exactly same flow, but with Windows paths and PowerShell commands.)
+It will help you run one single document supporting both platforms.
+
+
+---
+
+Tell me and I’ll prepare it!
+Also ready to help you Terraform it if needed!
+
