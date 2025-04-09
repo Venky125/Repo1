@@ -1,0 +1,155 @@
+Got it —
+You are saying:
+
+You already have the WebSphere core installation (8.5.5.26) ready as a tar file.
+
+You untar this core installation on any new server where you need WebSphere.
+
+Now you want steps to create new profiles (Dmgr, Node, etc.) manually after untarring.
+
+
+Right?
+If yes, this is very simple — I’ll give you clear working steps:
+
+
+---
+
+Steps to use tar-based WebSphere and create profiles (Dmgr, Node etc.)
+
+
+---
+
+1. Untar the WebSphere package
+
+First, copy the tar file to your target machine and untar it:
+
+cd /opt/IBM
+tar -xvf WAS85526.tar
+
+(Assuming you are keeping WebSphere under /opt/IBM/WebSphere/AppServer)
+
+Now your WebSphere base binaries are ready.
+
+
+---
+
+2. Set permissions (optional but recommended)
+
+Ensure proper permissions for the WebSphere directories:
+
+chown -R wasuser:wasgroup /opt/IBM/WebSphere
+chmod -R 755 /opt/IBM/WebSphere
+
+(Replace wasuser and wasgroup with your WebSphere OS user and group.)
+
+
+---
+
+3. Create Profiles using manageprofiles.sh
+
+Go to the bin directory:
+
+cd /opt/IBM/WebSphere/AppServer/bin
+
+Now use manageprofiles.sh to create your profiles:
+
+
+---
+
+Create Dmgr profile (Deployment Manager):
+
+./manageprofiles.sh -create -profileName Dmgr01 \
+ -profilePath /opt/IBM/WebSphere/AppServer/profiles/Dmgr01 \
+ -templatePath /opt/IBM/WebSphere/AppServer/profileTemplates/management \
+ -nodeName DmgrNode01 \
+ -cellName Cell01
+
+Explanation:
+
+-profileName: Logical name for profile.
+
+-profilePath: Filesystem path for profile.
+
+-templatePath: Choose management template for Dmgr.
+
+-nodeName: Name of node (can be anything but generally ends with "Node").
+
+-cellName: Name of cell (important for federation later).
+
+
+
+---
+
+Create AppServer (Node) profile:
+
+./manageprofiles.sh -create -profileName AppSrv01 \
+ -profilePath /opt/IBM/WebSphere/AppServer/profiles/AppSrv01 \
+ -templatePath /opt/IBM/WebSphere/AppServer/profileTemplates/default \
+ -nodeName Node01
+
+Explanation:
+
+default template is for a standalone AppServer (Node) profile.
+
+
+
+---
+
+Important Options You May Want to Add:
+
+-serverName server1 → if you want to customize the default server name.
+
+-adminUserName and -adminPassword → if you want secured (enabled) admin security at creation time.
+
+
+Example with security:
+
+./manageprofiles.sh -create -profileName Dmgr01 \
+ -profilePath /opt/IBM/WebSphere/AppServer/profiles/Dmgr01 \
+ -templatePath /opt/IBM/WebSphere/AppServer/profileTemplates/management \
+ -nodeName DmgrNode01 \
+ -cellName Cell01 \
+ -adminUserName wasadmin \
+ -adminPassword YourPassword123
+
+
+---
+
+4. Start the profiles
+
+Start Deployment Manager:
+
+/opt/IBM/WebSphere/AppServer/profiles/Dmgr01/bin/startManager.sh
+
+Start AppServer (Node):
+
+/opt/IBM/WebSphere/AppServer/profiles/AppSrv01/bin/startServer.sh server1
+
+
+---
+
+5. (Optional) Federate Node to Dmgr
+
+If you created separate nodes and you want them managed by Dmgr, you need to federate:
+
+/opt/IBM/WebSphere/AppServer/profiles/AppSrv01/bin/addNode.sh dmgr_hostname dmgr_soap_port
+
+Example:
+
+./addNode.sh dmgrhost.example.com 8879
+
+(Default SOAP port for Dmgr is usually 8879.)
+
+
+---
+
+Summary
+
+
+---
+
+Would you also like me to give a sample shell script that automates all these steps?
+(so you just run the script and everything happens) —
+Takes 2 mins to prepare if you want.
+(Yes/No)?
+
