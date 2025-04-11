@@ -1,0 +1,85 @@
+Got it — you want the new SSM document in YAML format, matching the style you already have.
+
+Here’s the YAML version based on your setup:
+
+schemaVersion: '2.2'
+description: 'Check CloudWatch Agent Status and Install/Configure if required for Linux'
+parameters: {}
+mainSteps:
+  - name: checkCloudWatchStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "check_cloudwatch_status_custom"
+    outputs:
+      - Name: Status
+        Selector: "$.Payload"
+        Type: String
+
+  - name: decideNextAction
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: installCloudWatchAgent
+          StringEquals:
+            - "{{ checkCloudWatchStatus.Status }}"
+            - "Cloud watch agent is Not-Installed"
+        - NextStep: configureCloudWatchAgent
+          StringEquals:
+            - "{{ checkCloudWatchStatus.Status }}"
+            - "Cloud watch agent is Not-Configured"
+        - NextStep: successExit
+          Or:
+            - StringEquals:
+                - "{{ checkCloudWatchStatus.Status }}"
+                - "Cloudwatch agent is Configured"
+            - StringEquals:
+                - "{{ checkCloudWatchStatus.Status }}"
+                - "Cloud watch agent is Installed"
+
+  - name: installCloudWatchAgent
+    action: aws:runDocument
+    inputs:
+      DocumentName: "AWS-ConfigureAWSPackage"
+      Parameters:
+        action: "Install"
+        name: "AmazonCloudWatchAgent"
+
+  - name: configureCloudWatchAgent
+    action: aws:runDocument
+    inputs:
+      DocumentName: "your-configure-cloudwatch-ssm-document-name" # <-- Replace this with your actual SSM document name that configures CW agent
+    onFailure: Abort
+
+  - name: successExit
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "CloudWatch agent is already installed and configured. No action needed."
+
+
+---
+
+Key Points:
+
+Step 1: Call your existing check_cloudwatch_status_custom document.
+
+Step 2: Based on output (Payload), decide next action:
+
+If Not-Installed → Install Agent
+
+If Not-Configured → Configure Agent
+
+If already Installed and Configured → Simply exit after echo.
+
+
+Install Step: Uses AWS-ConfigureAWSPackage document to install CloudWatch Agent.
+
+Configure Step: You have to replace your-configure-cloudwatch-ssm-document-name with your actual document for configuring CW agent.
+
+
+
+---
+
+Would you also like me to show how the flow changes if Windows is also involved? (In that case, we can branch based on platformType like Linux or Windows additionally.)
+Let me know!
+
