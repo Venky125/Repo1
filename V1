@@ -1,0 +1,137 @@
+Got it.
+You're giving four possible outputs for Linux:
+
+Cloud watch agent is Installed
+
+Cloudwatch agent is Configured
+
+Cloud watch agent is Not-Configured
+
+Cloud watch agent is Not-Installed
+
+
+And based on your previous plan for the flow:
+
+
+---
+
+Now, here's the JSON SSM document code (for Linux) based on this:
+
+{
+  "schemaVersion": "2.2",
+  "description": "Check CloudWatch agent status and take action for Linux instances.",
+  "mainSteps": [
+    {
+      "name": "checkCWAgentStatus",
+      "action": "aws:runShellScript",
+      "inputs": {
+        "runCommand": [
+          "#!/bin/bash",
+          "output=''",
+          "if [ -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent ]; then",
+          "  echo \"Cloud watch agent is Installed\"",
+          "  if [ -f /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json ]; then",
+          "    echo \"Cloudwatch agent is Configured\"",
+          "  else",
+          "    echo \"Cloud watch agent is Not-Configured\"",
+          "  fi",
+          "else",
+          "  echo \"Cloud watch agent is Not-Installed\"",
+          "fi"
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "cwOutput",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "branchBasedOnCWStatus",
+      "action": "aws:branch",
+      "inputs": {
+        "Choices": [
+          {
+            "NextStep": "installCWAgent",
+            "StringEquals": "Cloud watch agent is Not-Installed",
+            "Variable": "{{ checkCWAgentStatus.cwOutput }}"
+          },
+          {
+            "NextStep": "configureCWAgent",
+            "StringEquals": "Cloud watch agent is Installed\nCloud watch agent is Not-Configured",
+            "Variable": "{{ checkCWAgentStatus.cwOutput }}"
+          }
+        ],
+        "Default": "noActionRequired"
+      }
+    },
+    {
+      "name": "installCWAgent",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-ConfigureAWSPackage",
+        "Parameters": {
+          "action": ["Install"],
+          "name": ["AmazonCloudWatchAgent"]
+        }
+      }
+    },
+    {
+      "name": "configureCWAgent",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "your-configure-cloudwatch-agent-ssm-document-name",
+        "Parameters": {}
+      }
+    },
+    {
+      "name": "noActionRequired",
+      "action": "aws:runShellScript",
+      "inputs": {
+        "runCommand": [
+          "echo 'CloudWatch agent is already installed and configured. No action needed.'"
+        ]
+      }
+    }
+  ]
+}
+
+
+---
+
+Important Notes:
+
+Step checkCWAgentStatus: Checks if installed and configured.
+
+Step branchBasedOnCWStatus: Decides next step based on output.
+
+If Not-Installed, it goes to installCWAgent and then later you can branch to configureCWAgent after install (you can improve by chaining).
+
+If Installed but Not-Configured, it goes directly to configureCWAgent.
+
+If Installed and Configured, noActionRequired step runs.
+
+
+
+---
+
+Next Plan:
+
+You might want to chain install → configure automatically.
+
+You might want to clean up the string matching if multiline output is confusing (we can fix it too).
+
+
+
+---
+
+Would you also like me to optimize it further? (example: split outputs cleanly like installed_status and configured_status separately instead of parsing output strings manually?)
+
+It will make matching 100% safer in production.
+Let me know — then we will make it even better!
+
+Want me to proceed with that? (Yes/No)
+Then we can do for Windows after that.
+
