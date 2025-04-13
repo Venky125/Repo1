@@ -1,0 +1,170 @@
+Good — you caught it correctly!
+You're absolutely right — I made it a bit too simple earlier.
+
+Let's fix this properly now.
+
+
+---
+
+First to your questions:
+
+We can rename them properly so it's easy to understand.
+
+
+---
+
+Second correction you pointed out:
+In configureOnly also we must check two things:
+
+Platform (Linux/Windows)
+
+Plus, check if Installed (Installed but Not-Configured)
+
+
+Similarly for installAndConfigure step:
+
+Platform
+
+Plus, check if Not-Installed
+
+
+
+---
+
+Here's the Corrected Logical Flow in YAML
+
+schemaVersion: '2.2'
+description: |
+  Install and Configure CloudWatch Agent based on current installation and configuration status for Linux or Windows.
+parameters: {}
+mainSteps:
+
+  - name: checkCloudWatchStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "check_cloudwatch_status_custom_v2"
+      Parameters: {}
+    outputs:
+      - Name: PlatformType
+        Selector: "$.Payload.PlatformType"
+        Type: String
+      - Name: InstalledStatus
+        Selector: "$.Payload.InstalledStatus"
+        Type: String
+      - Name: ConfiguredStatus
+        Selector: "$.Payload.ConfiguredStatus"
+        Type: String
+
+  - name: decisionLogic
+    action: aws:branch
+    inputs:
+      Choices:
+
+        - NextStep: alreadyConfigured
+          Or:
+            - Variable: "{{ InstalledStatus }}"
+              StringEquals: "Installed"
+            - Variable: "{{ ConfiguredStatus }}"
+              StringEquals: "Configured"
+
+        - NextStep: installAndConfigure
+          And:
+            - Variable: "{{ InstalledStatus }}"
+              StringEquals: "Not-Installed"
+
+        - NextStep: configureOnly
+          And:
+            - Variable: "{{ InstalledStatus }}"
+              StringEquals: "Installed"
+            - Variable: "{{ ConfiguredStatus }}"
+              StringEquals: "Not-Configured"
+
+  - name: alreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Already Configured."
+
+  - name: installAndConfigure
+    action: aws:branch
+    inputs:
+      Choices:
+
+        - NextStep: installAndConfigureLinux
+          And:
+            - Variable: "{{ PlatformType }}"
+              StringEquals: "Linux"
+
+        - NextStep: installAndConfigureWindows
+          And:
+            - Variable: "{{ PlatformType }}"
+              StringEquals: "Windows"
+
+  - name: configureOnly
+    action: aws:branch
+    inputs:
+      Choices:
+
+        - NextStep: configureOnlyLinux
+          And:
+            - Variable: "{{ PlatformType }}"
+              StringEquals: "Linux"
+
+        - NextStep: configureOnlyWindows
+          And:
+            - Variable: "{{ PlatformType }}"
+              StringEquals: "Windows"
+
+  - name: installAndConfigureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "install_cwagent_and_configure_linux_doc"
+      Parameters: {}
+
+  - name: installAndConfigureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "install_cwagent_and_configure_windows_doc"
+      Parameters: {}
+
+  - name: configureOnlyLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "configure_cwagent_linux_doc"
+      Parameters: {}
+
+  - name: configureOnlyWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "configure_cwagent_windows_doc"
+      Parameters: {}
+
+
+---
+
+What Changed
+
+Cleaned up the step names to be more meaningful.
+
+In configureOnly, it checks both platform + InstalledStatus and ConfiguredStatus.
+
+Same for installAndConfigure.
+
+Also neatly separated steps for Linux and Windows.
+
+Final echo outputs based on what you want.
+
+
+
+---
+
+Summary of Outputs After Execution
+
+
+---
+
+Would you also like me to give a simple diagram showing this flow visually? It will be even easier for you to understand when building it in AWS console.
+Let me know! (Will take me 2 mins to draw.)
+
