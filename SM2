@@ -1,0 +1,177 @@
+Perfect — I completely get your flow now.
+Thanks for explaining so clearly.
+
+You already have these steps working:
+
+Install CW Agent using AWS-ConfigureAWSPackage
+
+Get instance platform using DescribeInstanceInformation
+
+Choose OS and run different SSM document based on Linux/Windows.
+
+
+Now, you want me to enhance it with the new logic:
+Use status output from your check_cloudwatch_status_custom_v2 document first, then based on result:
+
+Install + Configure
+
+Only Configure
+
+Or do nothing.
+
+
+AND you want to retain your current "get instance" and "choose OS" logic exactly.
+
+
+---
+
+Here is the YAML SSM Document:
+
+schemaVersion: '2.2'
+description: |
+  Install and Configure CloudWatch Agent on Linux and Windows servers
+  based on current CloudWatch agent status.
+parameters: {}
+mainSteps:
+
+  # Step 1: Check CW agent installation and configuration status
+  - name: checkCloudWatchStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "check_cloudwatch_status_custom_v2"
+      Parameters: {}
+    outputs:
+      - Name: status
+        Selector: $.Status
+        Type: String
+
+  # Step 2: Branch based on Status Output
+  - name: decideAction
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: installAndConfigure
+          StringEquals: "Linux-Not-Installed"
+        - NextStep: configureOnly
+          StringEquals: "Linux-Not-Configured"
+        - NextStep: installAndConfigure
+          StringEquals: "Windows-Not-Installed"
+        - NextStep: configureOnly
+          StringEquals: "Windows-Not-Configured"
+      Default: successMessage
+
+  # Step 3a: Install CloudWatch Agent (for both Windows and Linux)
+  - name: installAndConfigure
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-ConfigureAWSPackage
+      Parameters:
+        action: Install
+        installationType: Uninstall and reinstall
+        name: AmazonCloudWatchAgent
+    nextStep: getInstanceInfo
+
+  # Step 3b: Only Configure CW Agent
+  - name: configureOnly
+    action: aws:executeScript
+    inputs:
+      Runtime: python3.8
+      Handler: configure_handler
+      Script: |
+        def configure_handler(events, context):
+            return {'message': 'Proceed to configuration'}
+    nextStep: getInstanceInfo
+
+  # Step 4: Get Instance Platform
+  - name: getInstanceInfo
+    action: aws:executeAwsApi
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+    outputs:
+      - Name: InstanceId
+        Selector: $.InstanceInformationList[0].InstanceId
+        Type: String
+      - Name: PlatformType
+        Selector: $.InstanceInformationList[0].PlatformType
+        Type: String
+    nextStep: chooseOS
+
+  # Step 5: Choose OS and branch
+  - name: chooseOS
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: configureWindows
+          StringEquals: Windows
+          Variable: "{{ getInstanceInfo.PlatformType }}"
+        - NextStep: configureLinux
+          StringEquals: Linux
+          Variable: "{{ getInstanceInfo.PlatformType }}"
+      Default: successMessage
+
+  # Step 6a: Configure for Windows
+  - name: configureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "your-windows-config-document"
+      Parameters: {}
+
+  # Step 6b: Configure for Linux
+  - name: configureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "your-linux-config-document"
+      Parameters: {}
+
+  # Final Step: Success Message
+  - name: successMessage
+    action: aws:executeScript
+    inputs:
+      Runtime: python3.8
+      Handler: success_handler
+      Script: |
+        def success_handler(events, context):
+            return {'message': 'Already Configured. No action needed.'}
+
+
+---
+
+How it works now (your flow):
+
+
+---
+
+Important points:
+
+You need to replace "your-linux-config-document" and "your-windows-config-document" with your actual configuration SSM documents.
+
+Status must be properly formatted as:
+Linux-Installed-Configured, Linux-Not-Installed, etc.
+
+The "Install" step uses AWS-ConfigureAWSPackage — same as you were using before.
+
+The "Configure" step will simply jump to the correct document.
+
+
+
+---
+
+Final Output Messages you wanted:
+
+(Handled inside success_handler or your config documents' outputs.)
+
+
+---
+
+Would you also like me to show you how to polish the output text nicely, depending on the path taken?
+(We can add better "final outputs" in successMessage if you want!)
+
+
+---
+
+Next:
+If this is good, we can immediately move to Terraform module creation also, same document!
+Would you like that?
+Let’s go step-by-step!
+
