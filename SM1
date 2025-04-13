@@ -1,0 +1,176 @@
+Got it — you're trying to make it very clean and clear, smart approach.
+
+Let’s break down carefully what you said:
+
+
+---
+
+Your updated flow:
+
+1. Run check_cloudwatch_status_custom_v2 SSM Document.
+It will detect:
+
+Installed or Not-Installed
+
+Configured or Not-Configured
+
+Whether instance is Windows or Linux.
+
+
+
+2. If you print status smartly, example:
+
+"Linux-Not-Installed"
+
+"Linux-Not-Configured"
+
+"Windows-Not-Installed"
+
+"Windows-Not-Configured"
+
+"Linux-Installed-Configured"
+
+"Windows-Installed-Configured"
+
+
+it becomes super easy to branch logic based on OS + Status.
+
+
+
+
+---
+
+Then Actions based on the status:
+
+
+---
+
+Based on your notes:
+
+If Linux → Call Linux configuration document (after install if needed).
+
+If Windows → Call Windows configuration document (after install if needed).
+
+
+
+---
+
+So you need a YAML structure like:
+
+schemaVersion: '2.2'
+description: 'Install/Configure CloudWatch Agent on Linux and Windows based on Status'
+parameters: {}
+mainSteps:
+  - name: checkStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "check_cloudwatch_status_custom_v2"
+    outputs:
+      - Name: Status
+        Selector: "$.Payload"
+        Type: String
+
+  - name: decisionBasedOnStatus
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: installCloudWatchAgentLinux
+          StringEquals:
+            - "{{ checkStatus.Status }}"
+            - "Linux-Not-Installed"
+
+        - NextStep: installCloudWatchAgentWindows
+          StringEquals:
+            - "{{ checkStatus.Status }}"
+            - "Windows-Not-Installed"
+
+        - NextStep: configureCloudWatchAgentLinux
+          StringEquals:
+            - "{{ checkStatus.Status }}"
+            - "Linux-Not-Configured"
+
+        - NextStep: configureCloudWatchAgentWindows
+          StringEquals:
+            - "{{ checkStatus.Status }}"
+            - "Windows-Not-Configured"
+
+        - NextStep: alreadyConfigured
+          Or:
+            - StringEquals:
+                - "{{ checkStatus.Status }}"
+                - "Linux-Installed-Configured"
+            - StringEquals:
+                - "{{ checkStatus.Status }}"
+                - "Windows-Installed-Configured"
+
+  # If agent not installed - install then configure
+  - name: installCloudWatchAgentLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "AWS-ConfigureAWSPackage"
+      Parameters:
+        action: Install
+        name: AmazonCloudWatchAgent
+    nextStep: configureCloudWatchAgentLinux
+
+  - name: installCloudWatchAgentWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "AWS-ConfigureAWSPackage"
+      Parameters:
+        action: Install
+        name: AmazonCloudWatchAgent
+    nextStep: configureCloudWatchAgentWindows
+
+  # Configuring the CW Agent
+  - name: configureCloudWatchAgentLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "your-linux-configuration-document-name"
+    nextStep: successConfigurationPushed
+
+  - name: configureCloudWatchAgentWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "your-windows-configuration-document-name"
+    nextStep: successConfigurationPushed
+
+  # Success outputs
+  - name: alreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      Parameters:
+        commands:
+          - echo "Already Configured"
+
+  - name: successConfigurationPushed
+    action: aws:runCommand
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      Parameters:
+        commands:
+          - echo "Installed CW Agent and Configuration has been pushed" # If installation happened
+          - echo "Configuration has been pushed" # if only config needed
+
+
+---
+
+Key Changes you should do:
+
+Print output from check_cloudwatch_status_custom_v2 like Linux-Not-Installed etc. (Add OS tag in your script output.)
+
+Use separate steps for Linux and Windows.
+
+Set nextStep properly after installation to proceed automatically.
+
+
+
+---
+
+Would you like me to also show you exactly how your check_cloudwatch_status_custom_v2 script should print output smartly like
+Linux-Not-Installed / Windows-Installed-Configured?
+
+If yes, tell me — I’ll write that nicely for you too!
+(Just 4–5 lines change you need inside it!)
+
