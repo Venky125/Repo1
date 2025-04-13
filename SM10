@@ -1,0 +1,140 @@
+Alright — I clearly get your frustration now.
+Let’s slow it down and fix this properly.
+
+You are absolutely right:
+
+> In ConfigureOnly, it should NOT directly go ahead,
+It should first check platform and then call either ConfigureWindows or ConfigureLinux.
+
+
+
+Earlier I had shortcut it.
+Now, I’ll correct it properly, clean, and logically how you expect.
+
+
+---
+
+Here’s the corrected YAML now, based on your original good one:
+
+schemaVersion: '2.2'
+description: Install and Configure CloudWatch Agent Based on Status
+mainSteps:
+
+  - name: CheckCloudWatchStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: check_cloudwatch_status_custom_v2
+    outputs:
+      - Name: InstallationStatus
+        Selector: $.Payload.InstallationStatus
+        Type: String
+      - Name: ConfigurationStatus
+        Selector: $.Payload.ConfigurationStatus
+        Type: String
+      - Name: Platform
+        Selector: $.Payload.Platform
+        Type: String
+
+  - name: BranchOnStatus
+    action: aws:branch
+    inputs:
+      Choices:
+
+        # Case: Installed + Configured
+        - NextStep: AlreadyConfigured
+          Variable: '{{ CheckCloudWatchStatus.InstallationStatus }}'
+          StringEquals: "Cloud Watch agent is Installed"
+          Variable2: '{{ CheckCloudWatchStatus.ConfigurationStatus }}'
+          StringEquals2: "Cloud Watch agent is Configured"
+
+        # Case: Installed + Not-Configured
+        - NextStep: BranchConfigureOnly
+          Variable: '{{ CheckCloudWatchStatus.InstallationStatus }}'
+          StringEquals: "Cloud Watch agent is Installed"
+          Variable2: '{{ CheckCloudWatchStatus.ConfigurationStatus }}'
+          StringEquals2: "Cloud Watch agent is Not-Configured"
+
+        # Case: Not-Installed
+        - NextStep: InstallAndConfigure
+          Variable: '{{ CheckCloudWatchStatus.InstallationStatus }}'
+          StringEquals: "Cloud Watch agent is Not-Installed"
+
+  - name: AlreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Already Configured"
+
+  - name: BranchConfigureOnly
+    action: aws:branch
+    inputs:
+      Choices:
+
+        - NextStep: ConfigureWindows
+          Variable: '{{ CheckCloudWatchStatus.Platform }}'
+          StringEquals: "Windows"
+
+        - NextStep: ConfigureLinux
+          Variable: '{{ CheckCloudWatchStatus.Platform }}'
+          StringEquals: "Linux"
+
+  - name: InstallAndConfigure
+    action: aws:runDocument
+    inputs:
+      DocumentName: InstallCloudWatchAgentDoc
+    nextStep: BranchAfterInstall
+
+  - name: BranchAfterInstall
+    action: aws:branch
+    inputs:
+      Choices:
+
+        - NextStep: ConfigureWindows
+          Variable: '{{ CheckCloudWatchStatus.Platform }}'
+          StringEquals: "Windows"
+
+        - NextStep: ConfigureLinux
+          Variable: '{{ CheckCloudWatchStatus.Platform }}'
+          StringEquals: "Linux"
+
+  - name: ConfigureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCWAgentWindowsDoc
+
+  - name: ConfigureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCWAgentLinuxDoc
+
+
+---
+
+In Short:
+
+
+---
+
+What Changed from earlier wrong ones?
+
+BranchConfigureOnly introduced for Installed + Not-Configured
+
+BranchAfterInstall introduced after installation.
+
+Correctly checked Platform for Configure steps.
+
+AlreadyConfigured just does simple echo. No unnecessary python runtime now.
+
+
+
+---
+
+Would you also like me to show you a slightly optimized version after this? (where repeated branch can be minimized a little to make it even cleaner?)
+First confirm if this fixed version is okay for you?
+(Then I'll show cleaner optional one if you want.)
+
+Take your time to read this properly and tell me.
+No more rushing!
+
