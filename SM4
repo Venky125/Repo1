@@ -1,0 +1,172 @@
+Yes! I 100% remember what we did earlier —
+we already get PlatformType from the instance (Linux or Windows) using aws:executeAwsApi -> DescribeInstanceInformation.
+
+Instead of depending on the output text like Linux-Not-Installed / Windows-Not-Installed,
+you are suggesting a better approach:
+
+Keep check_cloudwatch_status_custom_v2 output simple (Installed, Not-Installed, Configured, Not-Configured)
+
+Separately use PlatformType (Linux or Windows) to decide next step.
+
+
+Smart move.
+It avoids messing output with OS details.
+And it separates concerns cleanly — Status and Platform.
+
+
+---
+
+So the updated flow should be:
+
+1. Run check_cloudwatch_status_custom_v2 → get cloudwatch status (Installed/Not-Installed/Configured/Not-Configured)
+
+
+2. Get instance platform type (Linux or Windows)
+
+
+3. Branch based on (Status + Platform):
+
+If Not-Installed → Install CW agent (same AWS-ConfigureAWSPackage)
+
+After installation (or if already installed), check if Not-Configured → Then run proper configuration SSM document based on OS.
+
+
+
+
+
+---
+
+Here's updated YAML structure for SSM document:
+
+schemaVersion: '2.2'
+description: |
+  Install and Configure CloudWatch Agent based on current status and platform.
+parameters: {}
+mainSteps:
+
+  - name: checkCloudWatchStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "check_cloudwatch_status_custom_v2"
+      Parameters: {}
+    outputs:
+      - Name: status
+        Selector: $.Status
+        Type: String
+
+  - name: getInstanceInfo
+    action: aws:executeAwsApi
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+    outputs:
+      - Name: myInstanceId
+        Selector: $.InstanceInformationList[0].InstanceId
+        Type: String
+      - Name: platformType
+        Selector: $.InstanceInformationList[0].PlatformType
+        Type: String
+
+  - name: decideAction
+    action: aws:branch
+    inputs:
+      Choices:
+
+        # If Not Installed
+        - And:
+            - Variable: "{{ checkCloudWatchStatus.status }}"
+              StringEquals: "Not-Installed"
+            - Variable: "{{ getInstanceInfo.platformType }}"
+              StringEquals: "Linux"
+          NextStep: installCWAgentLinux
+
+        - And:
+            - Variable: "{{ checkCloudWatchStatus.status }}"
+              StringEquals: "Not-Installed"
+            - Variable: "{{ getInstanceInfo.platformType }}"
+              StringEquals: "Windows"
+          NextStep: installCWAgentWindows
+
+        # If Installed but Not Configured
+        - And:
+            - Variable: "{{ checkCloudWatchStatus.status }}"
+              StringEquals: "Not-Configured"
+            - Variable: "{{ getInstanceInfo.platformType }}"
+              StringEquals: "Linux"
+          NextStep: configureCWAgentLinux
+
+        - And:
+            - Variable: "{{ checkCloudWatchStatus.status }}"
+              StringEquals: "Not-Configured"
+            - Variable: "{{ getInstanceInfo.platformType }}"
+              StringEquals: "Windows"
+          NextStep: configureCWAgentWindows
+
+  # Install CloudWatch agent for Linux
+  - name: installCWAgentLinux
+    action: aws:runCommand
+    inputs:
+      DocumentName: "AWS-ConfigureAWSPackage"
+      Parameters:
+        action: Install
+        name: AmazonCloudWatchAgent
+
+  # Install CloudWatch agent for Windows
+  - name: installCWAgentWindows
+    action: aws:runCommand
+    inputs:
+      DocumentName: "AWS-ConfigureAWSPackage"
+      Parameters:
+        action: Install
+        name: AmazonCloudWatchAgent
+
+  # Configure CW Agent for Linux
+  - name: configureCWAgentLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "Your-Linux-Configuration-Document-Name"
+      Parameters: {}
+
+  # Configure CW Agent for Windows
+  - name: configureCWAgentWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "Your-Windows-Configuration-Document-Name"
+      Parameters: {}
+
+
+---
+
+Now final outputs you want:
+
+At the end, add a final step that says:
+
+If agent was already installed and configured: → Message: "Already configured"
+
+If installed and configured now: → Message: "Installed CW Agent and Configuration has been pushed"
+
+If only configured: → Message: "Configuration has been pushed"
+
+
+We can do that easily by passing context between steps. (I'll add that once you confirm above.)
+
+
+---
+
+Summary:
+
+
+---
+
+Would you like me to continue and add final output step now itself (along with output messages)?
+(We can set a variable like installStatus=Installed, configured=true etc and print at the end.)
+
+Shall I proceed?
+If yes, also tell me:
+
+What should be the exact name of your Linux config document?
+
+What should be the exact name of your Windows config document?
+(so that I fill them directly instead of Your-Linux-Configuration-Document-Name)
+
+
