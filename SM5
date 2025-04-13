@@ -1,0 +1,191 @@
+Got it — thanks for the clear explanation.
+Now I fully understand your scenario.
+
+Summary of your outputs:
+
+For Linux:
+
+Cloud Watch agent is Installed
+
+Cloud Watch agent is Not-Installed
+
+Cloud Watch agent is Configured
+
+Cloud Watch agent is Not-Configured
+
+
+Similarly for Windows.
+
+
+Each status is separate.
+You don't get combined output like Installed-Configured together.
+
+
+---
+
+Based on your real output, your desired behavior is:
+
+
+---
+
+Here's the Corrected YAML Flow
+
+schemaVersion: '2.2'
+description: |
+  Install and Configure CloudWatch Agent based on current installation and configuration status for Linux or Windows.
+parameters: {}
+mainSteps:
+
+  - name: checkCloudWatchStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "check_cloudwatch_status_custom_v2"
+      Parameters: {}
+    outputs:
+      - Name: InstalledStatus
+        Selector: "$.Payload.InstalledStatus"
+        Type: String
+      - Name: ConfiguredStatus
+        Selector: "$.Payload.ConfiguredStatus"
+        Type: String
+
+  - name: getInstancePlatform
+    action: aws:executeAwsApi
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+      Filters:
+        - Key: InstanceIds
+          Values:
+            - "{{ InstanceId }}" # Pass InstanceId externally
+    outputs:
+      - Name: PlatformType
+        Selector: "$.InstanceInformationList[0].PlatformType"
+        Type: String
+
+  - name: decideAction
+    action: aws:branch
+    inputs:
+      Choices:
+
+        # 1. Already Installed and Configured
+        - NextStep: alreadyConfigured
+          And:
+            - Variable: "{{ checkCloudWatchStatus.InstalledStatus }}"
+              StringEquals: "Cloud Watch agent is Installed"
+            - Variable: "{{ checkCloudWatchStatus.ConfiguredStatus }}"
+              StringEquals: "Cloud Watch agent is Configured"
+
+        # 2. Installed but Not-Configured
+        - NextStep: configureOnly
+          And:
+            - Variable: "{{ checkCloudWatchStatus.InstalledStatus }}"
+              StringEquals: "Cloud Watch agent is Installed"
+            - Variable: "{{ checkCloudWatchStatus.ConfiguredStatus }}"
+              StringEquals: "Cloud Watch agent is Not-Configured"
+
+        # 3. Not Installed
+        - NextStep: installAndConfigure
+          Variable: "{{ checkCloudWatchStatus.InstalledStatus }}"
+          StringEquals: "Cloud Watch agent is Not-Installed"
+
+      Default: alreadyConfigured
+
+  - name: alreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      Parameters:
+        commands:
+          - echo "Already Configured"
+
+  - name: configureOnly
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: configureLinux
+          Variable: "{{ getInstancePlatform.PlatformType }}"
+          StringEquals: "Linux"
+        - NextStep: configureWindows
+          Variable: "{{ getInstancePlatform.PlatformType }}"
+          StringEquals: "Windows"
+
+  - name: configureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "Linux-Configure-CWAgent"  # Your config doc for Linux
+      Parameters: {}
+
+  - name: configureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "Windows-Configure-CWAgent"  # Your config doc for Windows
+      Parameters: {}
+
+  - name: installAndConfigure
+    action: aws:runDocument
+    inputs:
+      DocumentName: "AWS-ConfigureAWSPackage" # Install CW Agent
+      Parameters:
+        action: Install
+        name: AmazonCloudWatchAgent
+
+  - name: postInstallConfiguration
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: postConfigureLinux
+          Variable: "{{ getInstancePlatform.PlatformType }}"
+          StringEquals: "Linux"
+        - NextStep: postConfigureWindows
+          Variable: "{{ getInstancePlatform.PlatformType }}"
+          StringEquals: "Windows"
+
+  - name: postConfigureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: "Linux-Configure-CWAgent"
+      Parameters: {}
+
+  - name: postConfigureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: "Windows-Configure-CWAgent"
+      Parameters: {}
+
+  - name: finalOutput
+    action: aws:runCommand
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      Parameters:
+        commands:
+          - echo "Installed CW agent and configuration has been pushed"
+
+
+---
+
+Important Notes:
+
+Linux-Configure-CWAgent and Windows-Configure-CWAgent are your separate documents for pushing configuration.
+
+check_cloudwatch_status_custom_v2 should return two values:
+
+InstalledStatus (eg: Installed / Not-Installed)
+
+ConfiguredStatus (eg: Configured / Not-Configured)
+
+
+When you Install, it automatically Configures afterward in next steps.
+
+Platform is detected dynamically (Linux / Windows).
+
+Final output messages are correctly handled as you wanted.
+
+
+
+---
+
+Would you also like me to show a simple diagram of this flow to make it even easier to visualize?
+(1 minute work — and it will be super helpful!)
+Shall I?
+
