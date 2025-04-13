@@ -1,0 +1,163 @@
+Good, now it's crystal clear. Thanks for explaining patiently.
+Let’s finalize step-by-step based exactly on your setup:
+
+
+---
+
+Updated Understanding:
+
+Step 1:
+Run the CheckCloudWatchStatusCustomV2 document (you already have it).
+
+Step 2:
+Based on its output:
+
+
+---
+
+Documents you have:
+
+Install CloudWatch Agent: AWS-ConfigureAWSPackage (common for both Linux/Windows)
+
+Configure CloudWatch Agent (Linux): e.g., ConfigureCloudWatch_Linux
+
+Configure CloudWatch Agent (Windows): e.g., ConfigureCloudWatch_Windows
+
+
+(You will give me the exact document names later if needed.)
+
+
+---
+
+Clean Correct Flow (YAML)
+
+schemaVersion: '2.2'
+description: Check and install/configure CloudWatch Agent based on status
+mainSteps:
+  - name: checkCWAgentStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: CheckCloudWatchStatusCustomV2
+    outputs:
+      - Name: cwAgentStatus
+        Selector: $.Payload
+        Type: String
+
+  - name: decideNextAction
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: alreadyConfigured
+          Variable: "{{ checkCWAgentStatus.cwAgentStatus }}"
+          StringEquals: "Installed_Configured"
+
+        - NextStep: configureOnly
+          And:
+            - Variable: "{{ checkCWAgentStatus.cwAgentStatus }}"
+              StringEquals: "Installed_Not-Configured"
+        
+        - NextStep: installAndConfigure
+          And:
+            - Variable: "{{ checkCWAgentStatus.cwAgentStatus }}"
+              StringEquals: "Not-Installed_Not-Configured"
+
+  - name: alreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Already Configured"
+
+  - name: configureOnly
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: configureLinux
+          Variable: "{{ checkCWAgentStatus.PlatformType }}"
+          StringEquals: "Linux"
+
+        - NextStep: configureWindows
+          Variable: "{{ checkCWAgentStatus.PlatformType }}"
+          StringEquals: "Windows"
+
+  - name: installAndConfigure
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: installThenConfigureLinux
+          Variable: "{{ checkCWAgentStatus.PlatformType }}"
+          StringEquals: "Linux"
+
+        - NextStep: installThenConfigureWindows
+          Variable: "{{ checkCWAgentStatus.PlatformType }}"
+          StringEquals: "Windows"
+
+  - name: configureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCloudWatch_Linux
+
+  - name: configureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCloudWatch_Windows
+
+  - name: installThenConfigureLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: AWS-ConfigureAWSPackage
+    nextStep: configureLinux
+
+  - name: installThenConfigureWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: AWS-ConfigureAWSPackage
+    nextStep: configureWindows
+
+
+---
+
+Key Points Fixed:
+
+No python for already configured — just simple AWS-RunShellScript with echo.
+
+Install + Configure handled separately:
+
+First install (AWS-ConfigureAWSPackage),
+
+Then call configure (Linux or Windows separately).
+
+
+Configure only directly calls config document based on OS.
+
+Step names clean and meaningful now:
+
+installThenConfigureLinux,
+
+configureWindows, etc.
+
+
+
+
+---
+
+Small things you still need:
+
+Exact document names for:
+
+ConfigureCloudWatch_Linux
+
+ConfigureCloudWatch_Windows (You can replace later easily.)
+
+
+
+
+---
+
+Would you also like me to show the final output as a separate simple echo at the very end (like "Installation & Configuration Completed" or "Configuration Completed")?
+It will make your automation fully neat.
+
+Let me know, I'll quickly add that too!
+(Also if you want, I can put some visual flow diagram.)
+
