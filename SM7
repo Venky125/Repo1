@@ -1,0 +1,194 @@
+Perfect! Thanks for confirming.
+Let’s summarize clearly, so we can correct and clean everything up properly.
+
+
+---
+
+Here's what we agreed till now:
+
+You are running a CheckCloudWatchStatusCustomV2 document first, which gives outputs like:
+
+You want to decide:
+
+> Note: Ignore case like "Not Installed but Configured" — because that's practically not possible.
+
+
+
+
+---
+
+Problems we found earlier
+
+I wrote Or: incorrectly. Should be Conditions: always.
+
+In configureOnly branch, we should check both:
+
+Platform type (Linux / Windows)
+
+Installed = Installed
+
+Configured = Not-Configured
+
+
+Similarly for installAndConfigure.
+
+Step names like postInstallConfigurationLinux were confusing. You want more meaningful names like InstallThenConfigure_Linux.
+
+
+
+---
+
+So Now:
+
+I will rebuild the whole YAML for you, properly like this:
+
+
+---
+
+New Corrected YAML Flow
+
+schemaVersion: '2.2'
+description: Check CloudWatch Agent status and take action
+parameters:
+  InstanceId:
+    type: String
+    description: "(Required) EC2 Instance ID"
+
+mainSteps:
+
+# 1. Run the status check document
+- name: checkCloudWatchStatus
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: "CheckCloudWatchStatusCustomV2"
+    Parameters:
+      InstanceId: ["{{ InstanceId }}"]
+
+# 2. Decision Branch
+- name: decisionLogic
+  action: aws:branch
+  inputs:
+    Choices:
+
+      # Case: Installed + Configured --> Already Configured
+      - NextStep: alreadyConfigured
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.InstalledStatus }}", "Installed"]
+          - StringEquals: ["{{ checkCloudWatchStatus.ConfiguredStatus }}", "Configured"]
+
+      # Case: Installed but Not-Configured --> Run ConfigureOnly
+      - NextStep: configureOnly
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.InstalledStatus }}", "Installed"]
+          - StringEquals: ["{{ checkCloudWatchStatus.ConfiguredStatus }}", "Not-Configured"]
+
+      # Case: Not-Installed and Not-Configured --> Run InstallThenConfigure
+      - NextStep: installAndConfigure
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.InstalledStatus }}", "Not-Installed"]
+          - StringEquals: ["{{ checkCloudWatchStatus.ConfiguredStatus }}", "Not-Configured"]
+
+# 3. Output Step: Already Configured
+- name: alreadyConfigured
+  action: aws:executeScript
+  inputs:
+    Runtime: python3.8
+    Handler: script_handler
+    Script: |
+      def script_handler(events, context):
+          return {"status": "Already Configured"}
+
+# 4. Configure Only if Agent Installed but not Configured
+- name: configureOnly
+  action: aws:branch
+  inputs:
+    Choices:
+
+      - NextStep: configureLinux
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.PlatformType }}", "Linux"]
+
+      - NextStep: configureWindows
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.PlatformType }}", "Windows"]
+
+- name: configureLinux
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: "ConfigureCloudWatchAgent_Linux"
+    Parameters:
+      InstanceId: ["{{ InstanceId }}"]
+
+- name: configureWindows
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: "ConfigureCloudWatchAgent_Windows"
+    Parameters:
+      InstanceId: ["{{ InstanceId }}"]
+
+# 5. Install and Configure if Agent Not Installed
+- name: installAndConfigure
+  action: aws:branch
+  inputs:
+    Choices:
+
+      - NextStep: installThenConfigureLinux
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.PlatformType }}", "Linux"]
+
+      - NextStep: installThenConfigureWindows
+        Conditions:
+          - StringEquals: ["{{ checkCloudWatchStatus.PlatformType }}", "Windows"]
+
+- name: installThenConfigureLinux
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: "InstallThenConfigureCloudWatchAgent_Linux"
+    Parameters:
+      InstanceId: ["{{ InstanceId }}"]
+
+- name: installThenConfigureWindows
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: "InstallThenConfigureCloudWatchAgent_Windows"
+    Parameters:
+      InstanceId: ["{{ InstanceId }}"]
+
+# 6. Final Output for Install+Configure or ConfigureOnly
+- name: finalOutput
+  action: aws:executeScript
+  inputs:
+    Runtime: python3.8
+    Handler: script_handler
+    Script: |
+      def script_handler(events, context):
+          return {"status": events.get('customMessage', 'Operation Completed')}
+
+
+---
+
+Important Points:
+
+If already configured → directly returns "Already Configured".
+
+If configure only → runs respective document based on platform (Linux/Windows).
+
+If install + configure → runs respective install+configure document.
+
+Final status messages are handled at output steps.
+
+NO wrong Or: anywhere now.
+
+
+
+---
+
+Next Steps
+
+If you want, I can also prepare final combined version including your GetInstanceInfo etc.
+(We can make a "PROPER FULL" SSM document.)
+
+Would you like me to build the complete full version too? (With instance fetching etc?)
+(Yes/No) just tell me.
+I'll be ready!
+
