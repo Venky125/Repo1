@@ -1,0 +1,182 @@
+Thanks for the clarity. Since you have separate outputs for installation and configuration statuses, we’ll not combine them during status evaluation, and instead check them independently as you initially requested.
+
+
+---
+
+Expected Status Outputs from Status Check Document
+
+For Linux and Windows, you get two different outputs:
+
+Install status:
+
+Cloud watch agent is Installed
+
+Cloud watch agent is Not-Installed
+
+
+Configure status:
+
+Cloud watch agent is Configured
+
+Cloud watch agent is Not-Configured
+
+
+
+
+---
+
+Updated Logic Summary (Only One Flow Executes)
+
+1. Status Check — Get separate install and configure statuses for Linux/Windows.
+
+
+2. If Not-Installed —
+→ Install CW agent
+→ Configure based on platform
+→ Output: "CloudWatch agent has been installed and configured."
+→ isEnd: true
+
+
+3. If Installed but Not-Configured —
+→ Configure based on platform
+→ Output: "CloudWatch agent has been configured."
+→ isEnd: true
+
+
+4. If Installed and Configured —
+→ Output: "CloudWatch agent is already installed and configured."
+→ isEnd: true
+
+
+
+
+---
+
+Final YAML (Fully Indented + Clean Logic)
+
+schemaVersion: '2.2'
+description: CloudWatch Agent Install and Configure Automation
+mainSteps:
+  - name: checkCWStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: check_cloud_watch_status_custom_v2
+    outputs:
+      - Name: linuxInstallStatus
+        Selector: $.Payload.linux.installStatus
+        Type: String
+      - Name: linuxConfigStatus
+        Selector: $.Payload.linux.configStatus
+        Type: String
+      - Name: windowsInstallStatus
+        Selector: $.Payload.windows.installStatus
+        Type: String
+      - Name: windowsConfigStatus
+        Selector: $.Payload.windows.configStatus
+        Type: String
+
+  # Case 1: Not Installed → Install + Configure
+  - name: installCWAgent
+    action: aws:runDocument
+    precondition:
+      Or:
+        - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Not-Installed"]
+        - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Not-Installed"]
+    inputs:
+      DocumentName: Install CW agent
+    nextStep: configureCWByOS
+
+  # Case 2: Installed but Not Configured → Configure
+  - name: configureOnly
+    action: aws:branch
+    precondition:
+      And:
+        - Or:
+            - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Installed"]
+            - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Installed"]
+        - Or:
+            - StringEquals: ["{{ linuxConfigStatus }}", "Cloud watch agent is Not-Configured"]
+            - StringEquals: ["{{ windowsConfigStatus }}", "Cloud watch agent is Not-Configured"]
+    inputs:
+      Choices:
+        - NextStep: configureCWagentLinux
+          StringEquals: ["{{ linuxConfigStatus }}", "Cloud watch agent is Not-Configured"]
+        - NextStep: configureCWagentWindows
+          StringEquals: ["{{ windowsConfigStatus }}", "Cloud watch agent is Not-Configured"]
+
+  # Case 1 and 2 → Configure CW based on OS
+  - name: configureCWByOS
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: configureCWagentLinux
+          Or:
+            - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Not-Installed"]
+        - NextStep: configureCWagentWindows
+          Or:
+            - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Not-Installed"]
+
+  - name: configureCWagentLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCWagentLinux
+    nextStep: printConfigDoneLinux
+
+  - name: configureCWagentWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCWAgentWindows
+    nextStep: printConfigDoneWindows
+
+  - name: printConfigDoneLinux
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "CloudWatch agent has been installed and configured on Linux."
+    isEnd: true
+
+  - name: printConfigDoneWindows
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      Parameters:
+        commands:
+          - Write-Host "CloudWatch agent has been installed and configured on Windows."
+    isEnd: true
+
+  # Case 3: Already Installed and Configured
+  - name: alreadyConfigured
+    action: aws:runCommand
+    precondition:
+      Or:
+        - And:
+            - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Installed"]
+            - StringEquals: ["{{ linuxConfigStatus }}", "Cloud watch agent is Configured"]
+        - And:
+            - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Installed"]
+            - StringEquals: ["{{ windowsConfigStatus }}", "Cloud watch agent is Configured"]
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "CloudWatch agent is already installed and configured."
+    isEnd: true
+
+
+---
+
+What Changed
+
+Separate outputs for install and configure per platform are now respected.
+
+No combined status checks.
+
+isEnd: true is present at the end of each possible flow, exactly twice.
+
+Install CW agent, ConfigureCWagentLinux, and ConfigureCWAgentWindows steps retained with same names as you provided.
+
+
+Let me know if you'd like me to validate the JSON version or simulate the output!
+
