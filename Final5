@@ -1,0 +1,124 @@
+Awesome! Here's the final YAML document with everything you need:
+
+What’s added:
+
+Initial step to run the parent SSM document that gathers install/configure status and platform
+
+Stores output into parameters
+
+Flow branching logic works based on those outputs
+
+Ends flow properly using isEnd: true
+
+
+
+---
+
+schemaVersion: '0.3'
+description: "Install and Configure CloudWatch Agent based on platform and status"
+
+parameters:
+  linuxInstallStatus:
+    type: String
+  windowsInstallStatus:
+    type: String
+  linuxConfigStatus:
+    type: String
+  windowsConfigStatus:
+    type: String
+  platformType:
+    type: String
+
+mainSteps:
+
+  - name: GetStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: "ParentStatusCheckDocument"  # Replace with actual document name
+      Parameters: {}
+    outputs:
+      - Name: linuxInstallStatus
+        Selector: "$.Payload.linuxInstallStatus"
+        Type: String
+      - Name: windowsInstallStatus
+        Selector: "$.Payload.windowsInstallStatus"
+        Type: String
+      - Name: linuxConfigStatus
+        Selector: "$.Payload.linuxConfigStatus"
+        Type: String
+      - Name: windowsConfigStatus
+        Selector: "$.Payload.windowsConfigStatus"
+        Type: String
+      - Name: platformType
+        Selector: "$.Payload.platformType"
+        Type: String
+
+  - name: InstallCWAgent
+    action: aws:runDocument
+    precondition:
+      Or:
+        - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Not-Installed"]
+        - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Not-Installed"]
+    inputs:
+      DocumentName: "InstallCWagent"
+      Parameters: {}
+
+  - name: ConfigureCWagentLinux
+    action: aws:runDocument
+    precondition:
+      And:
+        - StringEquals: ["{{ platformType }}", "Linux"]
+        - Or:
+            - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Not-Installed"]
+            - StringEquals: ["{{ linuxConfigStatus }}", "Cloud watch agent is Not-Configured"]
+    inputs:
+      DocumentName: "ConfigureCWagentLinux"
+      Parameters: {}
+    isEnd: true
+
+  - name: ConfigureCWAgentWindows
+    action: aws:runDocument
+    precondition:
+      And:
+        - StringEquals: ["{{ platformType }}", "Windows"]
+        - Or:
+            - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Not-Installed"]
+            - StringEquals: ["{{ windowsConfigStatus }}", "Cloud watch agent is Not-Configured"]
+    inputs:
+      DocumentName: "ConfigureCWAgentWindows"
+      Parameters: {}
+    isEnd: true
+
+  - name: AlreadyConfigured
+    action: aws:runCommand
+    precondition:
+      And:
+        - StringEquals: ["{{ linuxInstallStatus }}", "Cloud watch agent is Installed"]
+        - StringEquals: ["{{ linuxConfigStatus }}", "Cloud watch agent is Configured"]
+        - StringEquals: ["{{ platformType }}", "Linux"]
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      Parameters:
+        commands:
+          - echo "CloudWatch agent is already installed and configured on Linux."
+    isEnd: true
+
+  - name: AlreadyConfiguredWindows
+    action: aws:runCommand
+    precondition:
+      And:
+        - StringEquals: ["{{ windowsInstallStatus }}", "Cloud watch agent is Installed"]
+        - StringEquals: ["{{ windowsConfigStatus }}", "Cloud watch agent is Configured"]
+        - StringEquals: ["{{ platformType }}", "Windows"]
+    inputs:
+      DocumentName: "AWS-RunPowerShellScript"
+      Parameters:
+        commands:
+          - Write-Output "CloudWatch agent is already installed and configured on Windows."
+    isEnd: true
+
+
+---
+
+Let me know if you want this converted into a downloadable file or sample output structure for the ParentStatusCheckDocument.
+
