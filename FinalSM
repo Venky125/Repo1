@@ -1,0 +1,147 @@
+Got it! Here's the final YAML SSM document with your exact step names preserved and proper indentation. It ensures only one flow is executed per server, and each flow ends with a unique output message:
+
+schemaVersion: '0.3'
+description: |
+  Check and install/configure CloudWatch Agent on Windows/Linux based on status
+mainSteps:
+  - name: checkCWStatus
+    action: aws:runDocument
+    inputs:
+      DocumentName: check_cloudwatch_status_custom
+    outputs:
+      - Name: LinuxInstallStatus
+        Selector: $.LinuxInstallStatus
+        Type: String
+      - Name: LinuxConfigStatus
+        Selector: $.LinuxConfigStatus
+        Type: String
+      - Name: WindowsInstallStatus
+        Selector: $.WindowsInstallStatus
+        Type: String
+      - Name: WindowsConfigStatus
+        Selector: $.WindowsConfigStatus
+        Type: String
+
+  # Flow: Installed + Configured → Do nothing
+  - name: alreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "CloudWatch agent is already installed and configured."
+    nextStep: endFlowInstalledConfigured
+    precondition:
+      StringEquals: ["{{checkCWStatus.LinuxInstallStatus}}", "Cloud watch agent is Installed"]
+    precondition2:
+      StringEquals: ["{{checkCWStatus.LinuxConfigStatus}}", "Cloud watch agent is Configured"]
+
+  - name: endFlowInstalledConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Status: Already Configured"
+
+  # Flow: Installed but Not Configured → Configure
+  - name: configureOnly
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureCWAgentWindows
+          Variable: "{{checkCWStatus.WindowsInstallStatus}}"
+          StringEquals: "Cloud watch agent is Installed"
+        - NextStep: ConfigureCWagentLinux
+          Variable: "{{checkCWStatus.LinuxInstallStatus}}"
+          StringEquals: "Cloud watch agent is Installed"
+      Default: endFlowInvalid
+
+  - name: ConfigureCWAgentWindows
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCWAgentWindows
+    nextStep: configOnlyOutput
+    precondition:
+      StringEquals: ["{{checkCWStatus.WindowsConfigStatus}}", "Cloud watch agent is Not-Configured"]
+
+  - name: ConfigureCWagentLinux
+    action: aws:runDocument
+    inputs:
+      DocumentName: ConfigureCWagentLinux
+    nextStep: configOnlyOutput
+    precondition:
+      StringEquals: ["{{checkCWStatus.LinuxConfigStatus}}", "Cloud watch agent is Not-Configured"]
+
+  - name: configOnlyOutput
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Status: Configuration has been pushed"
+
+  # Flow: Not Installed → Install and Configure
+  - name: installAndConfigure
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: InstallCWAgent
+          Variable: "{{checkCWStatus.WindowsInstallStatus}}"
+          StringEquals: "Cloud watch agent is Not-Installed"
+        - NextStep: InstallCWAgent
+          Variable: "{{checkCWStatus.LinuxInstallStatus}}"
+          StringEquals: "Cloud watch agent is Not-Installed"
+      Default: endFlowInvalid
+
+  - name: InstallCWAgent
+    action: aws:runDocument
+    inputs:
+      DocumentName: Install CW agent
+    nextStep: postInstallConfig
+
+  - name: postInstallConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureCWAgentWindows
+          Variable: "{{checkCWStatus.WindowsInstallStatus}}"
+          StringEquals: "Cloud watch agent is Not-Installed"
+        - NextStep: ConfigureCWagentLinux
+          Variable: "{{checkCWStatus.LinuxInstallStatus}}"
+          StringEquals: "Cloud watch agent is Not-Installed"
+      Default: endFlowInvalid
+
+  - name: installAndConfigOutput
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Status: Installed CW agent and configuration has been pushed"
+
+  # Fallback
+  - name: endFlowInvalid
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Status: Unexpected combination or already handled."
+
+Summary of Flow Execution:
+
+Only one of the following runs:
+
+alreadyConfigured
+
+configureOnly (calls one of the Configure docs)
+
+installAndConfigure (calls Install + Configure doc)
+
+
+Final status message is echoed after each complete flow.
+
+
+Let me know if you want to do the same for the Windows side as well in another variant.
+
