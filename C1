@@ -1,0 +1,112 @@
+Ok, understood your situation now very clearly.
+
+Let’s step-by-step fix it:
+
+
+---
+
+Important Concept in SSM "precondition"
+
+1. SSM precondition must have exactly one root key — either And: or Or:.
+
+
+2. Inside And: or Or:, you can have multiple expressions.
+
+
+3. You cannot put And and Or at the same level directly.
+
+And must contain Or inside it properly indented.
+
+
+
+4. No brackets syntax like programming (SSM precondition is YAML based).
+
+
+
+
+---
+
+Correct way (full syntax)
+
+Example — you want:
+
+installStatus == Not-Installed
+
+AND (platform == Linux OR platform == Windows)
+
+
+
+---
+
+Here’s correct YAML:
+
+precondition:
+  And:
+    - "{{ installStatus }} == Not-Installed"
+    - Or:
+        - "{{ platform }} == Linux"
+        - "{{ platform }} == Windows"
+
+Key:
+
+Root is And
+
+Inside And, you have two entries:
+
+First is direct comparison
+
+Second is another block Or with two comparisons
+
+
+
+
+---
+
+Wrong way (what you are trying):
+
+precondition:
+  And: "{{ installStatus }} == Not-Installed" Or "{{ platform }} == Linux" "{{ platform }} == Windows"
+
+Why wrong?
+
+Only one root allowed.
+
+YAML needs structure (nested).
+
+
+
+---
+
+Visual Structure:
+
+precondition
+ └── And
+      ├── condition1
+      └── Or
+           ├── condition2
+           └── condition3
+
+
+---
+
+Conclusion
+
+Use proper nesting.
+
+No brackets ( ) like programming.
+
+And must be parent. Or inside it.
+
+Write each condition as separate item (starting with -)
+
+
+
+---
+
+Do you want me to update your full YAML with this corrected style and give ready final version?
+
+(no StringEquals, using ==, clean nesting, isEnd true, everything)
+
+Just say: "Give final corrected YAML"
+I'll give fully working version!
+
