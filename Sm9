@@ -1,0 +1,92 @@
+Got it — you are 100% right.
+
+In SSM precondition, if you want to combine and and or,
+you must group them properly using parentheses ( ).
+
+Otherwise it gives error like:
+
+> "Precondition must have only 1 root."
+
+
+
+
+---
+
+Now carefully read:
+
+If you want:
+
+> (installStatus == Not-Installed) and (platform == Linux or platform == Windows)
+
+
+
+You must write it like this:
+
+precondition:
+  "{{ installStatus == 'Not-Installed' and (platform == 'Linux' or platform == 'Windows') }}"
+
+Notice:
+
+and comes first
+
+or group is wrapped inside ( )
+
+Correct parentheses are important!
+
+
+
+---
+
+Example for your Install Step:
+
+- name: InstallCWAgent
+  action: aws:runDocument
+  precondition:
+    "{{ installStatus == 'Not-Installed' and (platform == 'Linux' or platform == 'Windows') }}"
+  inputs:
+    documentName: Install-CloudWatch-Agent
+  isEnd: false
+
+
+---
+
+Similarly, for Configure Linux Step:
+
+You want:
+
+> (configStatus == Not-Configured) and (platform == Linux)
+
+
+
+Simple:
+
+- name: ConfigureCWAgentLinux
+  action: aws:runDocument
+  precondition:
+    "{{ configStatus == 'Not-Configured' and platform == 'Linux' }}"
+  inputs:
+    documentName: Configure-CWAgent-Linux
+  isEnd: true
+
+
+---
+
+Summary of Rule:
+
+Use double curly braces {{ ... }} around whole expression.
+
+Inside, if mixing and + or, use brackets ( ... ) properly.
+
+Expression should look like pure Python boolean expression.
+
+Otherwise SSM cannot parse and gives root error.
+
+
+
+---
+
+Would you like me to correct your full document accordingly with proper parentheses and send it?
+
+(Ready in 2 mins if you want!)
+Just say yes!
+
