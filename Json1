@@ -1,0 +1,123 @@
+Got it — you want JSON, because your main document is in JSON format.
+
+Here’s how you can capture output in JSON, and use it later in the same document:
+
+
+---
+
+JSON Example:
+
+1. Step to capture output from Check_CloudWatch_Status_Custom_V2
+
+{
+  "name": "Check_CloudWatch_Status_Custom_V2",
+  "action": "aws:runCommand",
+  "inputs": {
+    "DocumentName": "Check_CloudWatch_Status_Custom_V2",
+    "InstanceIds": [
+      "{{ instanceid }}"
+    ]
+  },
+  "outputs": [
+    {
+      "Name": "CloudWatchStatusOutput",
+      "Selector": "$.StandardOutputContent",
+      "Type": "String"
+    }
+  ]
+}
+
+
+---
+
+2. Step to use the captured output
+
+{
+  "name": "PrintOutput",
+  "action": "aws:runShellScript",
+  "inputs": {
+    "runCommand": [
+      "echo \"CloudWatch status is {{ Check_CloudWatch_Status_Custom_V2.CloudWatchStatusOutput }}\""
+    ]
+  }
+}
+
+
+---
+
+How to Insert in Main Document:
+
+In your main document JSON (mainDoc.json), under "mainSteps": [ ... ]
+
+First paste the capture step (Check_CloudWatch_Status_Custom_V2).
+
+Then later paste the usage step (PrintOutput).
+
+
+Example inside your document:
+
+{
+  "schemaVersion": "2.2",
+  "description": "My Main Document",
+  "parameters": {
+    ...
+  },
+  "mainSteps": [
+    {
+      "name": "Check_CloudWatch_Status_Custom_V2",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "Check_CloudWatch_Status_Custom_V2",
+        "InstanceIds": [
+          "{{ instanceid }}"
+        ]
+      },
+      "outputs": [
+        {
+          "Name": "CloudWatchStatusOutput",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "PrintOutput",
+      "action": "aws:runShellScript",
+      "inputs": {
+        "runCommand": [
+          "echo \"CloudWatch status is {{ Check_CloudWatch_Status_Custom_V2.CloudWatchStatusOutput }}\""
+        ]
+      }
+    }
+    // ... other steps
+  ]
+}
+
+
+---
+
+Summary for JSON:
+
+
+---
+
+Important
+
+Selector $.StandardOutputContent is commonly correct for aws:runCommand.
+
+If wrong, you can run manually once and check output format.
+
+Make sure JSON commas , are properly placed between steps.
+
+No extra comma after the last step.
+
+
+
+---
+
+Would you also like me to show how to use this variable inside a Precondition (in JSON)?
+If you want, I can prepare that too!
+(very helpful if you are dynamically deciding Install/Configure based on output!)
+
+Let me know!
+
