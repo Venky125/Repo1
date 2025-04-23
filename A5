@@ -1,0 +1,138 @@
+Perfect — let’s laser focus on what you actually want:
+
+You want only the parent document (which checks Install and Configure status on Linux/Windows) in correct YAML format, with:
+
+SchemaVersion: 0.3
+
+Type: Automation
+
+Outputs properly captured
+
+NO preconditions, NO platformType
+
+NO wrong things like runDocument or schema 2.0
+
+Same logic you had earlier (path checking + echo Installed/Configured status).
+
+
+
+---
+
+Here is the correct parent YAML:
+
+schemaVersion: '0.3'
+description: 'Check CloudWatch Agent installation and configuration status on Linux and Windows'
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutomationAssumeRole:
+    type: String
+    description: "(Optional) IAM role to allow Automation to perform actions on your behalf."
+  InstanceId:
+    type: String
+    description: "(Required) EC2 Instance ID where status needs to be checked."
+
+mainSteps:
+  - name: CheckLinuxInstallStatus
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            if [ -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent ]; then
+              echo "LinuxInstalled"
+            else
+              echo "LinuxNotInstalled"
+            fi
+    outputs:
+      - Name: LinuxInstallStatus
+        Selector: $.Payload[0]
+        Type: String
+
+  - name: CheckLinuxConfigStatus
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            if [ -f /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json ]; then
+              echo "LinuxConfigured"
+            else
+              echo "LinuxNotConfigured"
+            fi
+    outputs:
+      - Name: LinuxConfigStatus
+        Selector: $.Payload[0]
+        Type: String
+
+  - name: CheckWindowsInstallStatus
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            if (Test-Path "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.exe") {
+              Write-Output "WindowsInstalled"
+            } else {
+              Write-Output "WindowsNotInstalled"
+            }
+    outputs:
+      - Name: WindowsInstallStatus
+        Selector: $.Payload[0]
+        Type: String
+
+  - name: CheckWindowsConfigStatus
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            if (Test-Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\Configs\config.json") {
+              Write-Output "WindowsConfigured"
+            } else {
+              Write-Output "WindowsNotConfigured"
+            }
+    outputs:
+      - Name: WindowsConfigStatus
+        Selector: $.Payload[0]
+        Type: String
+
+outputs:
+  - CheckLinuxInstallStatus.LinuxInstallStatus
+  - CheckLinuxConfigStatus.LinuxConfigStatus
+  - CheckWindowsInstallStatus.WindowsInstallStatus
+  - CheckWindowsConfigStatus.WindowsConfigStatus
+
+
+---
+
+Explanation:
+
+Each runCommand step runs a shell or PowerShell command.
+
+Outputs are captured using outputs: block under each step.
+
+At the end, global outputs are listed under outputs: — strings are picked correctly.
+
+No platformType, no precondition, no unnecessary fields.
+
+
+
+---
+
+Would you like me to also show you how the JSON version of this would look if needed? (in case you want to keep both versions ready?)
+Let me know!
+
+Would you like a nice visual flow diagram also? (It will make it even easier to cross-check)
+
