@@ -1,0 +1,185 @@
+Got it clearly — you want the final corrected parent JSON file, with:
+
+Separate steps for:
+
+Linux Install Status
+
+Windows Install Status
+
+Linux Config Status
+
+Windows Config Status
+
+
+Correct platform-specific preconditions
+(Linux steps must run only on Linux, Windows steps must run only on Windows)
+
+Each step outputting one clean string ("Installed", "NotInstalled", "Configured", "NotConfigured")
+
+Global outputs properly declared
+
+No mistakes
+
+In pure JSON format.
+
+
+I’ll now give you the final parent document (Check_CloudWatch_Status_Custom_V2) exactly with all above.
+
+
+---
+
+Here’s the finalized parent JSON document:
+
+{
+  "description": "Check CloudWatch Agent Install and Config Status for Linux and Windows",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "instanceid": {
+      "type": "String",
+      "description": "EC2 Instance ID"
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "CheckLinuxInstall",
+      "action": "aws:runCommand",
+      "precondition": {
+        "StringEquals": [
+          "{{ platformType }}",
+          "Linux"
+        ]
+      },
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if [ -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl ]; then echo \"Installed\"; else echo \"NotInstalled\"; fi"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "linuxinstalledstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckWindowsInstall",
+      "action": "aws:runCommand",
+      "precondition": {
+        "StringEquals": [
+          "{{ platformType }}",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if (Test-Path 'C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1') { Write-Output 'Installed' } else { Write-Output 'NotInstalled' }"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "windowsinstalledstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckLinuxConfig",
+      "action": "aws:runCommand",
+      "precondition": {
+        "StringEquals": [
+          "{{ platformType }}",
+          "Linux"
+        ]
+      },
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if [ -f /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json ]; then echo \"Configured\"; else echo \"NotConfigured\"; fi"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "linuxconfiguredstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckWindowsConfig",
+      "action": "aws:runCommand",
+      "precondition": {
+        "StringEquals": [
+          "{{ platformType }}",
+          "Windows"
+        ]
+      },
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if (Test-Path 'C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\config.json') { Write-Output 'Configured' } else { Write-Output 'NotConfigured' }"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "windowsconfiguredstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    "CheckLinuxInstall.linuxinstalledstatus",
+    "CheckWindowsInstall.windowsinstalledstatus",
+    "CheckLinuxConfig.linuxconfiguredstatus",
+    "CheckWindowsConfig.windowsconfiguredstatus"
+  ]
+}
+
+
+---
+
+Highlights (cross-checked)
+
+
+---
+
+How outputs will be available in your main Automation Document?
+
+When you call this parent document inside your main Automation (maybe step name GetStatusStep),
+you can access these:
+
+
+---
+
+Would you also like me to show a working sample of how you call this document inside a main Automation yaml?
+
+(Just 5-6 lines extra but super useful)
+
+If yes, just say:
+
+> "Show sample call also"
+
+
+
+I'll send that also immediately!
+(so you can save more time!)
+
