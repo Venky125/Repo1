@@ -1,0 +1,184 @@
+Good catch! You're absolutely right.
+
+In our final JSON, you had no precondition, because:
+
+In Automation documents with schema 0.3, precondition is not used.
+
+precondition is mainly used in runbooks, not Automation documents.
+
+Instead, you use aws:branch or handle inside step logic if needed.
+
+
+So now — I will correct it properly:
+
+
+---
+
+Here is the correct YAML version without precondition:
+
+schemaVersion: "0.3"
+description: "Check CloudWatch Agent install and config status for Linux and Windows."
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  instanceId:
+    type: String
+    description: "The EC2 instance ID."
+  platformType:
+    type: String
+    description: "Platform type (Linux or Windows)."
+
+mainSteps:
+
+- name: CheckLinuxInstallStatus
+  action: aws:runCommand
+  inputs:
+    DocumentName: "AWS-RunShellScript"
+    InstanceIds:
+      - "{{ instanceId }}"
+    Parameters:
+      commands:
+        - |
+          if [ -f "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl" ]; then
+            echo "Installed"
+          else
+            echo "NotInstalled"
+          fi
+  onFailure: step:CheckWindowsInstallStatus
+  outputs:
+    - Name: LinuxInstallStatus
+      Selector: "$.StandardOutputContent"
+      Type: String
+
+- name: CheckLinuxConfigStatus
+  action: aws:runCommand
+  inputs:
+    DocumentName: "AWS-RunShellScript"
+    InstanceIds:
+      - "{{ instanceId }}"
+    Parameters:
+      commands:
+        - |
+          if [ -f "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json" ]; then
+            echo "Configured"
+          else
+            echo "NotConfigured"
+          fi
+  onFailure: step:CheckWindowsConfigStatus
+  outputs:
+    - Name: LinuxConfigStatus
+      Selector: "$.StandardOutputContent"
+      Type: String
+
+- name: CheckWindowsInstallStatus
+  action: aws:runCommand
+  inputs:
+    DocumentName: "AWS-RunPowerShellScript"
+    InstanceIds:
+      - "{{ instanceId }}"
+    Parameters:
+      commands:
+        - |
+          if (Test-Path "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1") {
+            Write-Output "Installed"
+          }
+          else {
+            Write-Output "NotInstalled"
+          }
+  outputs:
+    - Name: WindowsInstallStatus
+      Selector: "$.StandardOutputContent"
+      Type: String
+
+- name: CheckWindowsConfigStatus
+  action: aws:runCommand
+  inputs:
+    DocumentName: "AWS-RunPowerShellScript"
+    InstanceIds:
+      - "{{ instanceId }}"
+    Parameters:
+      commands:
+        - |
+          if (Test-Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.json") {
+            Write-Output "Configured"
+          }
+          else {
+            Write-Output "NotConfigured"
+          }
+  outputs:
+    - Name: WindowsConfigStatus
+      Selector: "$.StandardOutputContent"
+      Type: String
+
+outputs:
+  - Name: LinuxInstallStatus
+    Selector: "$.CheckLinuxInstallStatus.LinuxInstallStatus"
+    Type: String
+  - Name: LinuxConfigStatus
+    Selector: "$.CheckLinuxConfigStatus.LinuxConfigStatus"
+    Type: String
+  - Name: WindowsInstallStatus
+    Selector: "$.CheckWindowsInstallStatus.WindowsInstallStatus"
+    Type: String
+  - Name: WindowsConfigStatus
+    Selector: "$.CheckWindowsConfigStatus.WindowsConfigStatus"
+    Type: String
+
+
+---
+
+Changes done properly now:
+
+
+---
+
+Quick Important Points
+
+This document will run for both Linux and Windows.
+
+No precondition.
+
+Use branching (onFailure) or separate branching if needed for better flow control.
+
+You still get outputs like:
+
+LinuxInstallStatus
+
+LinuxConfigStatus
+
+WindowsInstallStatus
+
+WindowsConfigStatus
+
+
+
+
+---
+
+Would you like me to also show you how to make it smarter using aws:branch instead of onFailure?
+
+It will be like:
+
+If platform = Linux → Linux steps
+
+If platform = Windows → Windows steps
+
+
+Cleaner control.
+
+Just say:
+
+> Show aws:branch version also
+
+
+
+and I’ll give that version neatly.
+
+
+---
+
+Would you also like ready-to-paste JSON version (without preconditions)?
+I'll convert this clean YAML into JSON directly if you want.
+
+Waiting for your reply!
+(You asked very detailed questions — I'm following properly now.)
+
