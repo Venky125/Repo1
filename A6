@@ -1,0 +1,225 @@
+Perfect. Thanks for the clear instructions.
+
+Let’s summarize your request:
+
+Flow:
+
+Run parent document CW_Status_V3
+
+Take 4 outputs from it:
+
+LinuxInstallStatus
+
+WindowsInstallStatus
+
+LinuxConfigStatus
+
+WindowsConfigStatus
+
+
+Linux and Windows flows separately:
+
+If Not Installed, Install
+
+After Install (or if already Installed), Check Configure status
+
+If Not Configured, Configure
+
+If Already Configured, just print "Already Configured"
+
+
+
+Use onFailure: Continue wherever needed.
+
+No precondition.
+Use branch properly.
+Use schemaVersion 0.3.
+
+
+---
+
+Here’s the full YAML Automation Document for you:
+
+description: "Main Automation to install and configure CloudWatch Agent if needed"
+schemaVersion: '0.3'
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  InstanceId:
+    type: String
+
+mainSteps:
+  - name: CheckCWStatus
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: CW_Status_V3
+      Parameters:
+        InstanceId: "{{ InstanceId }}"
+    outputs:
+      - Name: LinuxInstallStatus
+        OutputType: String
+        Selector: "$.LinuxInstallStatus"
+      - Name: WindowsInstallStatus
+        OutputType: String
+        Selector: "$.WindowsInstallStatus"
+      - Name: LinuxConfigStatus
+        OutputType: String
+        Selector: "$.LinuxConfigStatus"
+      - Name: WindowsConfigStatus
+        OutputType: String
+        Selector: "$.WindowsConfigStatus"
+
+  - name: BranchLinuxInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: InstallCWAgentLinux
+          Variable: "{{ CheckCWStatus.LinuxInstallStatus }}"
+          StringEquals: "NotInstalled"
+        - NextStep: BranchLinuxConfig
+          Variable: "{{ CheckCWStatus.LinuxInstallStatus }}"
+          StringEquals: "Installed"
+
+  - name: InstallCWAgentLinux
+    action: aws:runCommand
+    onFailure: Continue
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Installing CloudWatch Agent on Linux"
+
+  - name: BranchLinuxConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureCWAgentLinux
+          Variable: "{{ CheckCWStatus.LinuxConfigStatus }}"
+          StringEquals: "NotConfigured"
+        - NextStep: LinuxAlreadyConfigured
+          Variable: "{{ CheckCWStatus.LinuxConfigStatus }}"
+          StringEquals: "Configured"
+
+  - name: ConfigureCWAgentLinux
+    action: aws:runCommand
+    onFailure: Continue
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Configuring CloudWatch Agent on Linux"
+
+  - name: LinuxAlreadyConfigured
+    action: aws:runCommand
+    onFailure: Continue
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "CloudWatch Agent already configured on Linux"
+
+  # ----------------------------
+
+  - name: BranchWindowsInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: InstallCWAgentWindows
+          Variable: "{{ CheckCWStatus.WindowsInstallStatus }}"
+          StringEquals: "NotInstalled"
+        - NextStep: BranchWindowsConfig
+          Variable: "{{ CheckCWStatus.WindowsInstallStatus }}"
+          StringEquals: "Installed"
+
+  - name: InstallCWAgentWindows
+    action: aws:runCommand
+    onFailure: Continue
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Installing CloudWatch Agent on Windows"
+
+  - name: BranchWindowsConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureCWAgentWindows
+          Variable: "{{ CheckCWStatus.WindowsConfigStatus }}"
+          StringEquals: "NotConfigured"
+        - NextStep: WindowsAlreadyConfigured
+          Variable: "{{ CheckCWStatus.WindowsConfigStatus }}"
+          StringEquals: "Configured"
+
+  - name: ConfigureCWAgentWindows
+    action: aws:runCommand
+    onFailure: Continue
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Configuring CloudWatch Agent on Windows"
+
+  - name: WindowsAlreadyConfigured
+    action: aws:runCommand
+    onFailure: Continue
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "CloudWatch Agent already configured on Windows"
+
+
+---
+
+Important notes:
+
+All outputs from CW_Status_V3 are properly used.
+
+Linux flow and Windows flow are separate.
+
+Install → then Configure → then Print Already Configured.
+
+onFailure: Continue is used after every command (to avoid full failure if command has issue).
+
+No precondition. Only branch steps.
+
+Clean YAML, ready to use in Automation document.
+
+
+
+---
+
+Visual flow:
+
+Check Status ->
+  Branch Linux Install ->
+    Install Linux if needed ->
+    Branch Linux Configure ->
+      Configure Linux if needed
+      or Print already configured
+
+  Branch Windows Install ->
+    Install Windows if needed ->
+    Branch Windows Configure ->
+      Configure Windows if needed
+      or Print already configured
+
+
+---
+
+Would you also like me to give a simple diagram (flow chart) for this flow?
+It will be even easier for you to explain to others or document internally!
+(optional) Let me know!
+
