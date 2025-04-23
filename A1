@@ -1,0 +1,210 @@
+Perfect, I fully understood now.
+Let's correct this properly in a clean way.
+
+Let me reframe your current setup and what exactly you need:
+
+
+---
+
+Your Setup
+
+Parent document = Check_CloudWatch_Status_Custom_V2
+(written in JSON format)
+
+It checks some paths (Linux and Windows) to find:
+
+Install Status
+
+Config Status
+
+
+Inside the parent document:
+
+You are using AWS-RunShellScript (Linux) and AWS-RunPowerShellScript (Windows)
+
+You are using echo or Write-Output to print "Installed" or "Configured" or "Not Installed" etc.
+
+
+Parent document currently DOES NOT have outputs block.
+
+
+
+---
+
+Problem
+
+Without outputs defined inside the parent document,
+the main Automation document cannot access those results.
+
+Right now your main Automation document is trying to use:
+
+{{ GetStatusStep.linuxinstalledstatus }}
+
+But it won't find it unless you define outputs in parent!
+
+
+
+---
+
+Solution
+
+1. Correct the Parent JSON (Check_CloudWatch_Status_Custom_V2)
+
+You need to add an "outputs" section in the parent document.
+
+Example:
+
+{
+  "description": "Check CloudWatch Agent Status on Linux and Windows",
+  "schemaVersion": "0.3",
+  "assumeRole": "{{ AutomationAssumeRole }}",
+  "parameters": {
+    "instanceid": {
+      "type": "String",
+      "description": "Instance ID to check"
+    }
+  },
+  "mainSteps": [
+    {
+      "name": "CheckLinuxInstall",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if [ -f /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl ]; then echo \"Installed\"; else echo \"NotInstalled\"; fi"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "linuxinstalledstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckWindowsInstall",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if (Test-Path \"C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1\") { Write-Output \"Installed\" } else { Write-Output \"NotInstalled\" }"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "windowsinstalledstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckLinuxConfig",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if [ -f /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json ]; then echo \"Configured\"; else echo \"NotConfigured\"; fi"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "linuxconfiguredstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    },
+    {
+      "name": "CheckWindowsConfig",
+      "action": "aws:runCommand",
+      "inputs": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "InstanceIds": ["{{ instanceid }}"],
+        "Parameters": {
+          "commands": [
+            "if (Test-Path \"C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\config.json\") { Write-Output \"Configured\" } else { Write-Output \"NotConfigured\" }"
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "Name": "windowsconfiguredstatus",
+          "Selector": "$.StandardOutputContent",
+          "Type": "String"
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    "CheckLinuxInstall.linuxinstalledstatus",
+    "CheckWindowsInstall.windowsinstalledstatus",
+    "CheckLinuxConfig.linuxconfiguredstatus",
+    "CheckWindowsConfig.windowsconfiguredstatus"
+  ]
+}
+
+
+---
+
+Key points:
+
+Every step (CheckLinuxInstall, CheckWindowsInstall, CheckLinuxConfig, CheckWindowsConfig)
+
+must have its own outputs block.
+
+
+At the end of the document:
+
+Add a global outputs section:
+
+"outputs": [
+  "CheckLinuxInstall.linuxinstalledstatus",
+  "CheckWindowsInstall.windowsinstalledstatus",
+  "CheckLinuxConfig.linuxconfiguredstatus",
+  "CheckWindowsConfig.windowsconfiguredstatus"
+]
+
+
+
+This tells AWS SSM Automation:
+
+> "Hey! These outputs will be available outside after this document runs."
+
+
+
+
+---
+
+Now in your Main Automation document
+
+Suppose you call Check_CloudWatch_Status_Custom_V2 inside step GetCWAgentStatus,
+then you can refer outputs like:
+
+{{ GetCWAgentStatus.linuxinstalledstatus }}
+{{ GetCWAgentStatus.windowsinstalledstatus }}
+{{ GetCWAgentStatus.linuxconfiguredstatus }}
+{{ GetCWAgentStatus.windowsconfiguredstatus }}
+
+and use them in preconditions or commands.
+
+
+---
+
+Summary Checklist
+
+
+---
+
+
+
