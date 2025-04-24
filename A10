@@ -1,0 +1,44 @@
+Got it! If you're happy with the parent document (CW_Status_V3), then let's focus on the main document, specifically the CheckCWStatus step inside it.
+
+You’re right to ask — the outputs section inside a aws:executeAutomation step in the main document must be explicitly declared if you want to use those outputs later in the flow.
+
+
+---
+
+Correct Format for CheckCWStatus Step in Main Document (YAML)
+
+- name: CheckCWStatus
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: CW_Status_V3
+    RuntimeParameters:
+      InstanceId: "{{ InstanceId }}"
+  outputs:
+    - Name: LinuxInstallStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['CheckLinuxInstall.LinuxInstallStatus']"
+    - Name: LinuxConfigStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['CheckLinuxConfig.LinuxConfigStatus']"
+    - Name: WindowsInstallStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['CheckWindowsInstall.WindowsInstallStatus']"
+    - Name: WindowsConfigStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['CheckWindowsConfig.WindowsConfigStatus']"
+
+
+---
+
+How to Use Later in Main Document Steps:
+
+Once you’ve defined outputs like that, you can access them in later steps using:
+
+{{ CheckCWStatus.LinuxInstallStatus }}
+{{ CheckCWStatus.WindowsConfigStatus }}
+
+
+---
+
+Let me know if you want me to plug this into your full main document with branching logic (install → configure), and I’ll generate it clean for you.
+
