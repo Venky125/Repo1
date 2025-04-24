@@ -1,0 +1,195 @@
+Thanks for confirming! Here's the complete and corrected main Automation YAML document, assuming:
+
+Your parent document is CW_Status_V3
+
+You want to:
+
+Install CW agent if not installed.
+
+Configure if not configured.
+
+Skip steps with meaningful echo messages if already installed/configured.
+
+Handle both Linux and Windows.
+
+Use onFailure: Continue where needed.
+
+Use outputs from parent document via CheckCWStatus.
+
+
+
+
+---
+
+Main Automation YAML (Automation type)
+
+schemaVersion: '0.3'
+description: >
+  Automation document to check CloudWatch agent status and install/configure as needed
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  InstanceId:
+    type: String
+    description: EC2 instance ID
+
+mainSteps:
+  - name: CheckCWStatus
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: CW_Status_V3
+      RuntimeParameters:
+        InstanceId: '{{ InstanceId }}'
+    outputs:
+      - Name: LinuxInstallStatus
+        Type: String
+        Selector: "$.CheckCWStatus.Outputs['LinuxInstallStatus']"
+      - Name: WindowsInstallStatus
+        Type: String
+        Selector: "$.CheckCWStatus.Outputs['WindowsInstallStatus']"
+      - Name: LinuxConfigStatus
+        Type: String
+        Selector: "$.CheckCWStatus.Outputs['LinuxConfigStatus']"
+      - Name: WindowsConfigStatus
+        Type: String
+        Selector: "$.CheckCWStatus.Outputs['WindowsConfigStatus']"
+
+  # --- Branch for Linux Install ---
+  - name: BranchLinuxInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: InstallCWLinux
+          Variable: '{{ CheckCWStatus.LinuxInstallStatus }}'
+          StringEquals: 'NotInstalled'
+        - NextStep: BranchLinuxConfig
+          Variable: '{{ CheckCWStatus.LinuxInstallStatus }}'
+          StringEquals: 'Installed'
+    isEnd: false
+
+  - name: InstallCWLinux
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        commands:
+          - echo "Installing CloudWatch Agent on Linux"
+          - yum install -y amazon-cloudwatch-agent
+    onFailure: Continue
+    isEnd: true
+
+  # --- Branch for Linux Config ---
+  - name: BranchLinuxConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureCWLinux
+          Variable: '{{ CheckCWStatus.LinuxConfigStatus }}'
+          StringEquals: 'NotConfigured'
+        - NextStep: LinuxAlreadyConfigured
+          Variable: '{{ CheckCWStatus.LinuxConfigStatus }}'
+          StringEquals: 'Configured'
+    isEnd: false
+
+  - name: ConfigureCWLinux
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        commands:
+          - echo "Configuring CloudWatch Agent on Linux"
+          - /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+    onFailure: Continue
+    isEnd: true
+
+  - name: LinuxAlreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        commands:
+          - echo "CloudWatch Agent already installed and configured on Linux."
+    isEnd: true
+
+  # --- Branch for Windows Install ---
+  - name: BranchWindowsInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: InstallCWWindows
+          Variable: '{{ CheckCWStatus.WindowsInstallStatus }}'
+          StringEquals: 'NotInstalled'
+        - NextStep: BranchWindowsConfig
+          Variable: '{{ CheckCWStatus.WindowsInstallStatus }}'
+          StringEquals: 'Installed'
+    isEnd: false
+
+  - name: InstallCWWindows
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        commands:
+          - Write-Output "Installing CloudWatch Agent on Windows"
+          - Start-Process msiexec.exe -Wait -ArgumentList "/i https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi /quiet"
+    onFailure: Continue
+    isEnd: true
+
+  # --- Branch for Windows Config ---
+  - name: BranchWindowsConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureCWWindows
+          Variable: '{{ CheckCWStatus.WindowsConfigStatus }}'
+          StringEquals: 'NotConfigured'
+        - NextStep: WindowsAlreadyConfigured
+          Variable: '{{ CheckCWStatus.WindowsConfigStatus }}'
+          StringEquals: 'Configured'
+    isEnd: false
+
+  - name: ConfigureCWWindows
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        commands:
+          - Write-Output "Configuring CloudWatch Agent on Windows"
+          - & 'C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1' -a fetch-config -m ec2 -c file:'C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.json' -s
+    onFailure: Continue
+    isEnd: true
+
+  - name: WindowsAlreadyConfigured
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        commands:
+          - Write-Output "CloudWatch Agent already installed and configured on Windows."
+    isEnd: true
+
+
+---
+
+Notes:
+
+Use {{ CheckCWStatus.<OutputName> }} format (not .Outputs[...]).
+
+All steps with isEnd: true will stop execution if reached.
+
+You don’t need to redefine InstanceId in the parent doc again.
+
+
+Let me know if you want to integrate this with the parent JSON document as a full tested pair!
+
