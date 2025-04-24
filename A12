@@ -1,0 +1,146 @@
+Great! Below is the full corrected AWS Systems Manager Automation YAML document using schemaVersion: '0.3', which:
+
+Calls the parent document CW_Status_V3
+
+Retrieves its outputs properly using outputs as key-value pairs
+
+Handles Linux and Windows logic separately
+
+Installs only if not installed
+
+Configures only if not configured
+
+Skips steps using onFailure: continue
+
+Uses meaningful messages for already installed/configured
+
+
+
+---
+
+Full YAML Automation Document (schemaVersion: '0.3')
+
+schemaVersion: '0.3'
+description: >
+  Main Automation to check CloudWatch Agent status, install and configure on both Linux and Windows.
+
+parameters:
+  InstanceId:
+    type: String
+    description: EC2 Instance ID
+
+mainSteps:
+  - name: CheckCWStatus
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: CW_Status_V3
+      RuntimeParameters:
+        InstanceId: "{{ InstanceId }}"
+    outputs:
+      LinuxInstallStatus: $.CheckLinuxInstall.LinuxInstallStatus
+      LinuxConfigStatus: $.CheckLinuxConfig.LinuxConfigStatus
+      WindowsInstallStatus: $.CheckWindowsInstall.WindowsInstallStatus
+      WindowsConfigStatus: $.CheckWindowsConfig.WindowsConfigStatus
+
+  # Linux Install Step
+  - name: InstallLinuxCWAgent
+    action: aws:runCommand
+    onFailure: continue
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - sudo yum install -y amazon-cloudwatch-agent
+    precondition:
+      StringNotEquals:
+        - "{{ CheckCWStatus.LinuxInstallStatus }}"
+        - "Installed"
+
+  # Linux Configure Step
+  - name: ConfigureLinuxCWAgent
+    action: aws:runCommand
+    onFailure: continue
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+              -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+    precondition:
+      StringNotEquals:
+        - "{{ CheckCWStatus.LinuxConfigStatus }}"
+        - "Configured"
+
+  # Windows Install Step
+  - name: InstallWindowsCWAgent
+    action: aws:runCommand
+    onFailure: continue
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - Start-BitsTransfer -Source https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/AmazonCloudWatchAgent.zip -Destination C:\Temp\CWAgent.zip
+          - Expand-Archive -Path C:\Temp\CWAgent.zip -DestinationPath C:\ProgramFiles\Amazon\CWAgent
+    precondition:
+      StringNotEquals:
+        - "{{ CheckCWStatus.WindowsInstallStatus }}"
+        - "Installed"
+
+  # Windows Configure Step
+  - name: ConfigureWindowsCWAgent
+    action: aws:runCommand
+    onFailure: continue
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - &configCmd 'C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1' -a fetch-config -m ec2 -c file:'C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.json' -s
+          - Invoke-Expression $configCmd
+    precondition:
+      StringNotEquals:
+        - "{{ CheckCWStatus.WindowsConfigStatus }}"
+        - "Configured"
+
+  # Final Message
+  - name: StatusMessage
+    action: aws:runCommand
+    onFailure: continue
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Automation completed for {{ InstanceId }}. Check CloudWatch agent status via SSM console or logs."
+
+
+---
+
+Notes:
+
+Make sure the parent document CW_Status_V3 has the steps named as:
+
+CheckLinuxInstall with output LinuxInstallStatus
+
+CheckLinuxConfig with output LinuxConfigStatus
+
+CheckWindowsInstall with output WindowsInstallStatus
+
+CheckWindowsConfig with output WindowsConfigStatus
+
+
+If any step is already installed/configured, it gets skipped due to precondition.
+
+onFailure: continue ensures next steps still run even if one fails.
+
+
+Let me know if you also want this saved as a .yaml file or need the version for SSM document import.
+
