@@ -1,0 +1,119 @@
+Perfect — since you're not using precondition (which is not valid in Automation documents with schema version 0.3), and you're already getting install/config status from the parent document, here's how we’ll structure the main Automation YAML:
+
+Objective
+
+1. Call CW_Status_V3 (parent doc) to get 4 outputs:
+
+LinuxInstallStatus
+
+LinuxConfigStatus
+
+WindowsInstallStatus
+
+WindowsConfigStatus
+
+
+
+2. Based on those values:
+
+If not installed, run your Install SSM document
+
+If not configured, run your Configure SSM document
+
+If both are already done, just log that status
+
+
+
+
+
+---
+
+Clean YAML Skeleton (SchemaVersion 0.3)
+
+schemaVersion: '0.3'
+description: "Main document to check and install/configure CW Agent"
+parameters:
+  InstanceId:
+    type: String
+    description: "(Required) EC2 instance ID"
+mainSteps:
+  - name: CheckCWStatus
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: CW_Status_V3
+      RuntimeParameters:
+        InstanceId: "{{ InstanceId }}"
+
+  - name: BranchLinuxInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: InstallLinuxCWAgent
+          Variable: "{{ CheckCWStatus.Outputs.LinuxInstallStatus }}"
+          StringEquals: "NotInstalled"
+        - NextStep: BranchLinuxConfig
+          Variable: "{{ CheckCWStatus.Outputs.LinuxInstallStatus }}"
+          StringEquals: "Installed"
+      Default: BranchEnd
+
+  - name: InstallLinuxCWAgent
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: Your-Linux-Install-SSM-Doc
+      RuntimeParameters:
+        InstanceId: "{{ InstanceId }}"
+    onFailure: Continue
+
+  - name: BranchLinuxConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: ConfigureLinuxCWAgent
+          Variable: "{{ CheckCWStatus.Outputs.LinuxConfigStatus }}"
+          StringEquals: "NotConfigured"
+        - NextStep: AlreadyConfiguredLog
+          Variable: "{{ CheckCWStatus.Outputs.LinuxConfigStatus }}"
+          StringEquals: "Configured"
+      Default: BranchEnd
+
+  - name: ConfigureLinuxCWAgent
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: Your-Linux-Config-SSM-Doc
+      RuntimeParameters:
+        InstanceId: "{{ InstanceId }}"
+    onFailure: Continue
+
+  - name: AlreadyConfiguredLog
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "CW Agent already configured"
+
+  - name: BranchEnd
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - echo "Branching completed"
+
+
+---
+
+Replaceable Fields:
+
+Your-Linux-Install-SSM-Doc → Your custom install document name.
+
+Your-Linux-Config-SSM-Doc → Your custom configure document name.
+
+
+
+---
+
+This gives you a clean if-else branching structure, no use of precondition, and correctly wires outputs from the parent doc.
+
+Let me know if you want to extend the same logic for Windows platform too.
+
