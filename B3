@@ -1,0 +1,63 @@
+Great, let’s clear this up accurately and match it with your setup.
+
+In the Parent Document (CW_Status_V3)
+
+Let’s say your final outputs section in the parent document looks like this:
+
+"outputs": [
+  "CheckLinuxInstallStatus.LinuxInstallStatus",
+  "CheckWindowsInstallStatus.WindowsInstallStatus",
+  "CheckLinuxConfigStatus.LinuxConfigStatus",
+  "CheckWindowsConfigStatus.WindowsConfigStatus"
+]
+
+This means:
+
+CheckLinuxInstallStatus is the step name.
+
+LinuxInstallStatus is the output name from that step.
+
+
+
+---
+
+In the Main Automation Document
+
+To retrieve those values correctly, your CheckCWStatus step must use this format:
+
+- name: CheckCWStatus
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: CW_Status_V3
+    RuntimeParameters:
+      InstanceId: "{{ InstanceId }}"
+  outputs:
+    - Name: LinuxInstallStatus
+      Type: String
+      Selector: $.CheckCWStatus.Outputs.CheckLinuxInstallStatus.LinuxInstallStatus
+
+    - Name: WindowsInstallStatus
+      Type: String
+      Selector: $.CheckCWStatus.Outputs.CheckWindowsInstallStatus.WindowsInstallStatus
+
+    - Name: LinuxConfigStatus
+      Type: String
+      Selector: $.CheckCWStatus.Outputs.CheckLinuxConfigStatus.LinuxConfigStatus
+
+    - Name: WindowsConfigStatus
+      Type: String
+      Selector: $.CheckCWStatus.Outputs.CheckWindowsConfigStatus.WindowsConfigStatus
+
+Important Notes:
+
+Do not use square brackets.
+
+The path for Selector is exactly:
+
+$.<StepName>.Outputs.<ParentStep>.<OutputName>
+
+Make sure outputs: in your YAML is an array, as shown above.
+
+
+Would you like me to help build the logic that installs/configures based on these outputs next?
+
