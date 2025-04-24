@@ -1,0 +1,95 @@
+Perfect — if you already have separate Install and Configure steps for both Linux and Windows in your document (or are planning to plug them in), we can simplify the YAML just to check status and branch accordingly.
+
+Here’s a cleaned-up YAML, focusing only on:
+
+Retrieving output from parent doc
+
+Branching decisions using those outputs
+
+Calling your own install/configure steps by step name only
+
+
+
+---
+
+Final Flow Template
+
+schemaVersion: '0.3'
+description: >
+  Check CW Agent install/configure status and trigger install/configure steps accordingly.
+
+parameters:
+  InstanceId:
+    type: String
+    description: EC2 instance ID
+
+mainSteps:
+
+  - name: CheckCWStatus
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: CW_Status_V3
+      RuntimeParameters:
+        InstanceId: '{{ InstanceId }}'
+
+  # Linux branch
+  - name: BranchLinuxInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: CWInstallLinux
+          Variable: '{{ CheckCWStatus.LinuxInstallStatus }}'
+          StringEquals: 'NotInstalled'
+        - NextStep: BranchLinuxConfig
+          Variable: '{{ CheckCWStatus.LinuxInstallStatus }}'
+          StringEquals: 'Installed'
+
+  - name: BranchLinuxConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: CWConfigureLinux
+          Variable: '{{ CheckCWStatus.LinuxConfigStatus }}'
+          StringEquals: 'NotConfigured'
+        - NextStep: LinuxAlreadyConfigured
+          Variable: '{{ CheckCWStatus.LinuxConfigStatus }}'
+          StringEquals: 'Configured'
+
+  # Windows branch
+  - name: BranchWindowsInstall
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: CWInstallWindows
+          Variable: '{{ CheckCWStatus.WindowsInstallStatus }}'
+          StringEquals: 'NotInstalled'
+        - NextStep: BranchWindowsConfig
+          Variable: '{{ CheckCWStatus.WindowsInstallStatus }}'
+          StringEquals: 'Installed'
+
+  - name: BranchWindowsConfig
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: CWConfigureWindows
+          Variable: '{{ CheckCWStatus.WindowsConfigStatus }}'
+          StringEquals: 'NotConfigured'
+        - NextStep: WindowsAlreadyConfigured
+          Variable: '{{ CheckCWStatus.WindowsConfigStatus }}'
+          StringEquals: 'Configured'
+
+
+---
+
+How to Plug Your Steps
+
+Just define CWInstallLinux, CWConfigureLinux, etc., separately after this block — or already have them in the same document.
+
+These can be either aws:runCommand or another aws:executeAutomation or aws:executeScript — based on your logic.
+
+
+
+---
+
+Let me know if you’d like me to plug your exact step definitions for each install/config action into this flow.
+
