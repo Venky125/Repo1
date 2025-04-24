@@ -1,0 +1,34 @@
+You're absolutely right — for AWS Systems Manager Automation documents using schema version 0.3, the outputs section for a step like aws:executeAutomation should be in a key-value format, not an array. Thanks for pointing that out again.
+
+Let me correct that and show you the valid syntax:
+
+
+---
+
+Correct YAML format for CheckCWStatus step (schemaVersion: '0.3')
+
+- name: CheckCWStatus
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: CW_Status_V3
+    RuntimeParameters:
+      InstanceId: "{{ InstanceId }}"
+  outputs:
+    LinuxInstallStatus: $.CheckLinuxInstall.LinuxInstallStatus
+    LinuxConfigStatus: $.CheckLinuxConfig.LinuxConfigStatus
+    WindowsInstallStatus: $.CheckWindowsInstall.WindowsInstallStatus
+    WindowsConfigStatus: $.CheckWindowsConfig.WindowsConfigStatus
+
+
+---
+
+Then you can reference them like:
+
+{{ CheckCWStatus.LinuxInstallStatus }}
+{{ CheckCWStatus.WindowsConfigStatus }}
+
+
+---
+
+Let me know if you want the entire corrected main document structured with install and config logic for both Linux and Windows — I can stitch it all together cleanly.
+
