@@ -1,0 +1,83 @@
+Thanks for the update. Let’s resolve the errors you're seeing in the CheckCWStatus step of your main Automation document YAML.
+
+Common Errors You're Facing:
+
+1. "Unknown field: Parameters"
+→ Usually means indentation or structure issue under inputs.
+
+
+2. "Must not have additional properties" for outputs
+→ Happens when output variables are defined incorrectly.
+
+
+
+
+---
+
+Please use the correct YAML structure like below:
+
+Correct CheckCWStatus Step (YAML)
+
+- name: CheckCWStatus
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: CW_Status_V3
+    RuntimeParameters:
+      InstanceId: "{{ InstanceId }}"
+  outputs:
+    - Name: LinuxInstallStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['LinuxInstallStatus']"
+    - Name: WindowsInstallStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['WindowsInstallStatus']"
+    - Name: LinuxConfigStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['LinuxConfigStatus']"
+    - Name: WindowsConfigStatus
+      Type: String
+      Selector: "$.CheckCWStatus.Outputs['WindowsConfigStatus']"
+
+
+---
+
+Key Fixes:
+
+Use RuntimeParameters instead of Parameters inside inputs.
+
+Ensure each outputs block has:
+
+Name (simple string with no spaces),
+
+Type: String,
+
+Selector accessing the output from the parent doc step.
+
+
+
+
+---
+
+Also in Parent Document (CW_Status_V3):
+
+Ensure your outputs are declared like this:
+
+"outputs": [
+  "LinuxInstallStatus",
+  "WindowsInstallStatus",
+  "LinuxConfigStatus",
+  "WindowsConfigStatus"
+]
+
+And each relevant step must have:
+
+"outputs": [
+  {
+    "Name": "LinuxInstallStatus",
+    "Selector": "$.Payload",
+    "Type": "String"
+  }
+]
+
+Let me know if you'd like the full working YAML+JSON pair updated with these corrections.
+
