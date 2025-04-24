@@ -1,0 +1,43 @@
+Great — let’s go step by step and fix this correctly.
+
+Step: CheckCWStatus — Minimal Correct YAML Block
+
+Here’s how this step should look in the main automation YAML with the proper outputs block (which must be an array, not a dictionary):
+
+- name: CheckCWStatus
+  action: aws:executeAutomation
+  inputs:
+    DocumentName: CW_Status_V3
+    RuntimeParameters:
+      InstanceId: "{{ InstanceId }}"
+  outputs:
+    - Name: LinuxInstallStatus
+      Type: String
+      Selector: "$.Outputs.LinuxInstallStatus"
+    - Name: WindowsInstallStatus
+      Type: String
+      Selector: "$.Outputs.WindowsInstallStatus"
+    - Name: LinuxConfigStatus
+      Type: String
+      Selector: "$.Outputs.LinuxConfigStatus"
+    - Name: WindowsConfigStatus
+      Type: String
+      Selector: "$.Outputs.WindowsConfigStatus"
+
+Important Notes:
+
+The outputs block is an array (starts with - for each item).
+
+The Selector points to the flattened outputs returned from the parent doc.
+
+Use: $.Outputs.<OutputName>
+
+Don’t include the step name from the parent doc in the selector.
+
+
+
+
+---
+
+Let me know once this runs without errors, and then we’ll move to the next step (e.g., branching logic based on these outputs).
+
