@@ -1,0 +1,67 @@
+Perfect, you're almost there! The error you're seeing — "missing mainSteps at least 1 action should be provided" — simply means your document needs to have the top-level structure with a mainSteps: block. Right now, your steps like CheckCWStatus are not nested under mainSteps.
+
+Also, to print the output from the parent document, you can use a simple aws:runCommand or aws:executeScript step to echo the values.
+
+
+---
+
+Here's a minimal working YAML Automation Document that:
+
+1. Calls the parent document (CW_Status_V3)
+
+
+2. Retrieves outputs
+
+
+3. Prints the output (e.g., LinuxInstallStatus)
+
+
+
+schemaVersion: '0.3'
+description: Test getting outputs from parent doc
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  InstanceId:
+    type: String
+    description: EC2 instance ID
+  AutomationAssumeRole:
+    type: String
+    description: Role to assume
+
+mainSteps:
+  - name: CheckCWStatus
+    action: aws:executeAutomation
+    inputs:
+      DocumentName: CW_Status_V3
+      RuntimeParameters:
+        InstanceId: "{{ InstanceId }}"
+    outputs:
+      - Name: LinuxInstallStatus
+        Type: String
+        Selector: $.CheckCWStatus.Outputs.CheckLinuxInstallStatus.LinuxInstallStatus
+
+  - name: PrintLinuxStatus
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Linux Install Status: {{ CheckCWStatus.LinuxInstallStatus }}"
+
+
+---
+
+Key Points:
+
+CheckCWStatus.LinuxInstallStatus refers to the output name you've defined in the outputs of the CheckCWStatus step.
+
+If your target instance is Windows, replace AWS-RunShellScript with AWS-RunPowerShellScript.
+
+
+
+---
+
+Let me know if you also want to print the configuration status or Windows values. I can expand it!
+
