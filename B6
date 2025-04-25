@@ -1,0 +1,105 @@
+Sure! Here's a clean and simple SSM Automation document flow to:
+
+1. Detect OS (Linux or Windows)
+
+
+2. Run install & config check for Linux only
+
+
+3. Run install & config check for Windows only
+
+
+4. All using NextStep and NextStepCondition
+
+
+
+
+---
+
+Sample YAML Structure:
+
+schemaVersion: '0.3'
+description: >
+  Automation to run install and config check based on OS
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  InstanceId:
+    type: String
+    description: "Instance to run automation on"
+
+mainSteps:
+  - name: DetectOS
+    action: aws:executeAwsApi
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+      Filters:
+        - Key: InstanceIds
+          Values:
+            - "{{ InstanceId }}"
+    outputs:
+      - Name: PlatformType
+        Selector: "$.InstanceInformationList[0].PlatformType"
+        Type: String
+    nextStep: CheckLinuxInstall
+    nextStepCondition: "{{ DetectOS.PlatformType }} == 'Linux'"
+
+  - name: CheckLinuxInstall
+    action: aws:runShellScript
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Checking Linux installation..."
+    nextStep: CheckLinuxConfig
+
+  - name: CheckLinuxConfig
+    action: aws:runShellScript
+    inputs:
+      DocumentName: "AWS-RunShellScript"
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "Checking Linux configuration..."
+
+  - name: CheckWindowsInstall
+    action: aws:runPowerShellScript
+    inputs:
+      DocumentName: "AWS-RunPowerShellScript"
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - Write-Output "Checking Windows installation..."
+    isEnd: true
+    nextStepCondition: "{{ DetectOS.PlatformType }} == 'Windows'"
+
+  - name: CheckWindowsConfig
+    action: aws:runPowerShellScript
+    inputs:
+      DocumentName: "AWS-RunPowerShellScript"
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - Write-Output "Checking Windows configuration..."
+
+
+---
+
+Explanation:
+
+DetectOS checks whether the instance is Linux or Windows.
+
+nextStep + nextStepCondition routes execution to the relevant install step.
+
+The other branch is skipped entirely.
+
+You can place isEnd: true at the end of each OS branch if needed.
+
+
+Let me know if you want to modularize this further using parent-child documents or call separate install scripts.
+
