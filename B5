@@ -1,0 +1,31 @@
+Thanks for the clarity. Since you're already using python3.8 in your document, here's how you can safely print the output from the parent document using the aws:executeScript step.
+
+Example Step: Print Linux Install Status Using Python 3.8
+
+- name: PrintLinuxStatus
+  action: aws:executeScript
+  inputs:
+    Runtime: python3.8
+    Handler: script_handler
+    Script: |
+      def script_handler(events, context):
+          linux_status = events.get("LinuxStatus", "Unknown")
+          print("Linux Install Status:", linux_status)
+          return {"message": linux_status}
+    InputPayload:
+      LinuxStatus: "{{ CheckCWStatus.LinuxInstallStatus }}"
+
+Explanation:
+
+Runtime: Using python3.8 (as expected by the Automation service).
+
+InputPayload: Injects the output from the parent document.
+
+Script: Prints and returns the value, helpful for debugging.
+
+
+
+---
+
+Let me know if you'd also like a version for printing Windows Install Status or anything else!
+
