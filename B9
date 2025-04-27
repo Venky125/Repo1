@@ -1,0 +1,68 @@
+Given that you're using Schema version 0.3, there are some constraints in how certain steps are defined. This version supports a specific set of actions, and it looks like the issue might be related to syntax or action compatibility with the version you're using.
+
+Adjustments for Schema Version 0.3:
+
+For version 0.3, the aws:runShellScript action may not be available, and the use of StandardOutputContent might also be restricted. Instead, you should rely on aws:runCommand and other supported actions.
+
+Here's a simple approach to print the value in the current version:
+
+Corrected Example for Schema Version 0.3:
+
+version: '0.3'
+steps:
+  - name: CheckLinuxInstallStatus
+    action: aws:runCommand
+    inputs:
+      documentName: AWS-RunShellScript
+      parameters:
+        commands:
+          - echo "Checking if Linux is installed"
+    outputs:
+      - Name: LinuxInstallStatus
+        Selector: $.StandardOutput
+        Type: String
+
+  - name: DebugStep
+    action: aws:runCommand
+    inputs:
+      documentName: AWS-RunShellScript
+      parameters:
+        commands:
+          - echo "LinuxInstallStatus: {{CheckLinuxInstallStatus.LinuxInstallStatus}}"
+
+  - name: DecideNextActionLinux
+    action: aws:branch
+    inputs:
+      Choices:
+        - Variable: "{{CheckLinuxInstallStatus.LinuxInstallStatus}}"
+          StringEquals: "LinuxInstalled"
+          NextStep: CheckLinuxConfigStatus
+        - Variable: "{{CheckLinuxInstallStatus.LinuxInstallStatus}}"
+          StringEquals: "Configured"
+          NextStep: AlreadyConfigured
+      DefaultStep: InstallCWAgent
+
+Key Changes:
+
+1. Action: aws:runCommand: In version 0.3, you should use aws:runCommand with AWS-RunShellScript to run commands on an instance.
+
+
+2. StandardOutput vs StandardOutputContent: In version 0.3, we use $.StandardOutput instead of $.StandardOutputContent for capturing the output of commands run by aws:runCommand.
+
+
+3. aws:runCommand instead of aws:runShellScript: The action type aws:runShellScript is not available in 0.3, so we use aws:runCommand to execute shell commands, which works in this schema version.
+
+
+4. Use of Selector: $.StandardOutput: This will capture the standard output from the aws:runCommand action, which is the output you're trying to use in subsequent steps.
+
+
+
+Notes:
+
+The StandardOutput captures the output of commands executed by aws:runCommand and makes that available for subsequent steps.
+
+Be sure that the YAML indentation is correct, as improper indentation can cause syntax errors in AWS Systems Manager documents.
+
+
+Please try this approach and let me know how it goes. If the error persists, please share any error messages you're receiving for further investigation.
+
