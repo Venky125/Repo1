@@ -1,0 +1,107 @@
+It seems that the issue might be with how the outputs are being referenced or passed from one step to another. Let's go through the steps to ensure everything is correctly set up.
+
+1. Ensure Output in the First Step:
+
+In the first step, you need to ensure that the output is correctly extracted from $.StandardOutputContent and named appropriately.
+
+For example:
+
+steps:
+  - name: mainstep
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "LinuxInstalled"
+    outputs:
+      - Name: LinuxInstalledStatus
+        Selector: $.StandardOutputContent
+        Type: String
+
+This will correctly store the output from the mainstep into the LinuxInstalledStatus output variable. If echo "LinuxInstalled" runs successfully, the StandardOutputContent will contain "LinuxInstalled".
+
+2. Reference Output from Main Step in the Next Step:
+
+In the second step, you need to reference this output from mainstep correctly. The syntax should be as follows:
+
+steps:
+  - name: decideNextAction
+    action: aws:branch
+    inputs:
+      Choices:
+        - Variable: "{{mainstep.LinuxInstalledStatus}}"
+          StringEquals: "LinuxInstalled"
+          NextStep: CheckLinuxConfigStatus
+      DefaultStep: InstallCWAgent
+
+Key Considerations:
+
+Ensure that the output of mainstep is available before it's referenced. If there is a chance that mainstep doesn't run or fails, the variable won't be set.
+
+Ensure that the StringEquals check is case-sensitive and the value matches exactly (including spaces, newlines, etc.).
+
+Ensure that the output variable LinuxInstalledStatus is correctly passed to mainstep and is accessible in the decideNextAction step.
+
+
+Debugging Tips:
+
+1. Check Output in Logs: Add a debugging aws:runShellScript step after mainstep to check if the output is being set correctly.
+
+steps:
+  - name: mainstep
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "LinuxInstalled"
+    outputs:
+      - Name: LinuxInstalledStatus
+        Selector: $.StandardOutputContent
+        Type: String
+
+  - name: debugOutput
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "LinuxInstalledStatus: {{mainstep.LinuxInstalledStatus}}"
+
+This will output the value of LinuxInstalledStatus after it has been set to verify it's working.
+
+
+2. Verify Selector Path: Double-check the exact structure of the JSON output from StandardOutputContent. You can do this by running the aws:runShellScript step with a command like echo or printenv and then inspect the output in the logs. Ensure the path $.StandardOutputContent is correct.
+
+
+3. Try Default Path with Debugging: If it still doesn't work as expected, try adding a default step that prints the output so you can confirm if the variable is being populated.
+
+
+
+Revised Example with Debugging:
+
+steps:
+  - name: mainstep
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "LinuxInstalled"
+    outputs:
+      - Name: LinuxInstalledStatus
+        Selector: $.StandardOutputContent
+        Type: String
+
+  - name: debugOutput
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "LinuxInstalledStatus: {{mainstep.LinuxInstalledStatus}}"
+
+  - name: decideNextAction
+    action: aws:branch
+    inputs:
+      Choices:
+        - Variable: "{{mainstep.LinuxInstalledStatus}}"
+          StringEquals: "LinuxInstalled"
+          NextStep: CheckLinuxConfigStatus
+      DefaultStep: InstallCWAgent
+
+In this example, the debugOutput step will print the value of LinuxInstalledStatus, allowing you to verify whether the output was correctly set before the decideNextAction step.
+
+Let me know if this helps, or if you need further troubleshooting!
+
