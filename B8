@@ -1,0 +1,62 @@
+To print the output directly in the decideNextAction step, you can use a aws:runShellScript action inside the decideNextAction step, like this:
+
+Here’s the adjusted code to print the output of the first step directly in the decideNextAction step:
+
+steps:
+  - name: mainstep
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+        - echo "LinuxInstalled"
+    outputs:
+      - Name: LinuxInstalledStatus
+        Selector: $.StandardOutputContent
+        Type: String
+
+  - name: decideNextAction
+    action: aws:branch
+    inputs:
+      Choices:
+        - Variable: "{{mainstep.LinuxInstalledStatus}}"
+          StringEquals: "LinuxInstalled"
+          NextStep: CheckLinuxConfigStatus
+        - Variable: "{{mainstep.LinuxInstalledStatus}}"
+          StringEquals: "Configured"
+          NextStep: AlreadyConfigured
+      DefaultStep: InstallCWAgent
+    nextStep: aws:runShellScript  # Adding a runShellScript step to print the output here
+    inputs:
+      runCommand:
+        - echo "LinuxInstalledStatus: {{mainstep.LinuxInstalledStatus}}"
+
+Key Changes:
+
+1. decideNextAction Step:
+
+After determining the path to proceed (either CheckLinuxConfigStatus, AlreadyConfigured, or InstallCWAgent), I’ve added a nextStep that runs a aws:runShellScript to print the value of LinuxInstalledStatus.
+
+
+
+2. runShellScript:
+
+Inside decideNextAction, we run a script using aws:runShellScript to echo the output of LinuxInstalledStatus (which is set in the mainstep).
+
+
+
+
+Expected Behavior:
+
+The echo inside decideNextAction will print the value of LinuxInstalledStatus, so you can verify whether it's getting the correct value or not before making decisions.
+
+After printing the value, it will proceed with the NextStep based on the conditions defined (checking for LinuxInstalled or Configured).
+
+
+Debugging:
+
+This will help you print the value of LinuxInstalledStatus right before you decide which step to proceed with.
+
+Make sure to check the Step Output logs in AWS Systems Manager to confirm if the value is printed correctly.
+
+
+Let me know if this works for you!
+
