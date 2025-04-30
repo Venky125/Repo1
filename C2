@@ -1,0 +1,49 @@
+When using AWS Systems Manager (SSM) Automation Documents (SSM Documents), if you're trying to use Write-Output to pass data between steps and it's not working, here are some key things to keep in mind:
+
+1. Use aws:runCommand or aws:runShellScript correctly
+
+If you're using a PowerShell script in a step and trying to pass output, you need to explicitly capture output in the outputs section of the step.
+
+2. Write-Output may not be enough
+
+Write-Output writes to the pipeline, but SSM only captures standard output, and outputs must be structured properly (e.g., key=value format) for use in Outputs or subsequent steps.
+
+3. Use JSON output to pass values cleanly
+
+The best practice is to output structured JSON, then parse it in the outputs section.
+
+Example Step in SSM Document:
+
+- name: GetInfo
+  action: aws:runCommand
+  inputs:
+    DocumentName: AWS-RunPowerShellScript
+    Parameters:
+      commands:
+        - $result = @{ key1 = "value1"; key2 = "value2" } | ConvertTo-Json -Compress
+        - Write-Output $result
+  outputs:
+    - Name: key1
+      Selector: $.stdout
+      Type: StringMap
+
+But SSM Automation doesn't automatically parse JSON. So to capture and pass a value, output it alone on a line, and reference it using a selector:
+
+Better example:
+
+- name: GetMyOutput
+  action: aws:runCommand
+  inputs:
+    DocumentName: AWS-RunPowerShellScript
+    Parameters:
+      commands:
+        - $myVar = "MyValue"
+        - Write-Output "MyOutput=$myVar"
+  outputs:
+    - Name: MyOutput
+      Selector: '$.stdout[?starts_with(@,"MyOutput=")]'
+      Type: String
+
+Then in a later step, you can reference it as {{ GetMyOutput.MyOutput }}.
+
+Would you like a full working example of a multi-step SSM Automation document with PowerShell?
