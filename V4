@@ -1,0 +1,79 @@
+Great! To allow SSM Run Command to write outputs to your S3 bucket, you need to do two things:
+
+
+---
+
+1. Add a bucket policy to allow SSM to write outputs
+
+Go to S3 console > Your bucket > Permissions > Bucket policy, and add this:
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSSMOutput",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ssm.amazonaws.com"
+      },
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::your-bucket-name/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "your-aws-account-id"
+        }
+      }
+    }
+  ]
+}
+
+Replace:
+
+your-bucket-name with your actual bucket name.
+
+your-aws-account-id with your 12-digit AWS Account ID.
+
+
+
+---
+
+2. Ensure the IAM role used by SSM (usually AmazonSSMManagedInstanceCore) allows writing to S3
+
+If you're using EC2-managed instance with SSM, the instance profile (role attached to EC2) must have this permission:
+
+{
+  "Effect": "Allow",
+  "Action": [
+    "s3:PutObject"
+  ],
+  "Resource": "arn:aws:s3:::your-bucket-name/*"
+}
+
+You can attach a custom policy to the instance role, or create a new policy with this permission.
+
+
+---
+
+Optional: Enable SSM command output to S3 in Run Command
+
+When sending a Run Command (like via console, CLI, or SSM document), specify:
+
+S3 bucket name
+
+(Optional) S3 key prefix – e.g., ssm-logs/
+
+
+You can do this using:
+
+AWS CLI --output-s3-bucket-name and --output-s3-key-prefix
+
+Or in SSM Documents, using "OutputS3BucketName" and "OutputS3KeyPrefix" under aws:runCommand or aws:runShellScript.
+
+
+
+---
+
+Let me know if you'd like a sample JSON of the full Run Command document or CLI command with output to S3!
+
