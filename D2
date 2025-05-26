@@ -1,0 +1,73 @@
+Perfect. Since you already have two files in /tmp (say /tmp/install.txt and /tmp/config.txt) and corresponding CSVs in S3 (like install.csv and config.csv), here’s the complete shell script to:
+
+Read each text file
+
+Convert each line to CSV format (if not already)
+
+Append it to the corresponding CSV in S3
+
+
+
+---
+
+Assumptions
+
+Local files:
+
+/tmp/install.txt
+
+/tmp/config.txt
+
+
+S3 files:
+
+s3://your-bucket-name/path/install.csv
+
+s3://your-bucket-name/path/config.csv
+
+
+
+
+---
+
+Shell Script
+
+# Install status - process and append
+aws s3 cp s3://your-bucket-name/path/install.csv /tmp/install_existing.csv || touch /tmp/install_existing.csv
+awk '{print $1 "," $2}' /tmp/install.txt > /tmp/install_new.csv
+cat /tmp/install_new.csv >> /tmp/install_existing.csv
+aws s3 cp /tmp/install_existing.csv s3://your-bucket-name/path/install.csv
+
+# Config status - process and append
+aws s3 cp s3://your-bucket-name/path/config.csv /tmp/config_existing.csv || touch /tmp/config_existing.csv
+awk '{print $1 "," $2}' /tmp/config.txt > /tmp/config_new.csv
+cat /tmp/config_new.csv >> /tmp/config_existing.csv
+aws s3 cp /tmp/config_existing.csv s3://your-bucket-name/path/config.csv
+
+
+---
+
+Add to SSM Document
+
+Insert this inside your SSM Document JSON under aws:runShellScript like:
+
+{
+  "action": "aws:runShellScript",
+  "name": "AppendStatusToS3",
+  "inputs": {
+    "runCommand": [
+      "aws s3 cp s3://your-bucket-name/path/install.csv /tmp/install_existing.csv || touch /tmp/install_existing.csv",
+      "awk '{print $1 \",\" $2}' /tmp/install.txt > /tmp/install_new.csv",
+      "cat /tmp/install_new.csv >> /tmp/install_existing.csv",
+      "aws s3 cp /tmp/install_existing.csv s3://your-bucket-name/path/install.csv",
+      "",
+      "aws s3 cp s3://your-bucket-name/path/config.csv /tmp/config_existing.csv || touch /tmp/config_existing.csv",
+      "awk '{print $1 \",\" $2}' /tmp/config.txt > /tmp/config_new.csv",
+      "cat /tmp/config_new.csv >> /tmp/config_existing.csv",
+      "aws s3 cp /tmp/config_existing.csv s3://your-bucket-name/path/config.csv"
+    ]
+  }
+}
+
+Let me know if you'd like to timestamp each row, avoid duplicates, or add headers.
+
