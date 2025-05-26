@@ -1,0 +1,38 @@
+Here’s how to insert the shell script (for copying /tmp/status.txt to status.csv in S3) into your SSM document JSON under the mainSteps section, assuming this is a AWS-RunShellScript document for Linux instances.
+
+Sample SSM JSON Snippet
+
+{
+  "schemaVersion": "2.2",
+  "description": "Copy /tmp/status.txt to S3 as status.csv",
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "CopyStatusToS3",
+      "inputs": {
+        "runCommand": [
+          "#!/bin/bash",
+          "BUCKET_NAME=\"your-bucket-name\"",
+          "SRC_FILE=\"/tmp/status.txt\"",
+          "DEST_FILE=\"status.csv\"",
+          "aws s3 cp \"$SRC_FILE\" \"s3://$BUCKET_NAME/$DEST_FILE\""
+        ]
+      }
+    }
+  ]
+}
+
+Replace:
+
+"your-bucket-name" with the actual S3 bucket name.
+
+
+Notes:
+
+This overwrites status.csv in the bucket each time.
+
+Make sure the EC2 instance has the appropriate IAM role with S3 PutObject permission.
+
+Ensure awscli is installed and the system has access to the S3 endpoint
+
+
