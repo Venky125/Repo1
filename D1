@@ -1,0 +1,28 @@
+Here's the shell script code you can insert in your SSM Automation document (JSON format) under the aws:runShellScript action to fetch the Instance ID securely using IMDSv2 and append it along with CloudWatch status to a text file (like /tmp/status.txt):
+
+Shell Script Block for SSM JSON Document:
+
+{
+  "action": "aws:runShellScript",
+  "name": "FetchInstanceIdAndStatus",
+  "inputs": {
+    "runCommand": [
+      "TOKEN=$(curl -s -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\")",
+      "INSTANCE_ID=$(curl -s -H \"X-aws-ec2-metadata-token: $TOKEN\" http://169.254.169.254/latest/meta-data/instance-id)",
+      "CLOUDWATCH_STATUS=$(echo -n \"LinuxInstalled\")",  # Replace with dynamic status if needed
+      "echo \"$INSTANCE_ID $CLOUDWATCH_STATUS\" >> /tmp/status.txt"
+    ]
+  }
+}
+
+Notes:
+
+This uses IMDSv2 to avoid 401 errors.
+
+You can replace "LinuxInstalled" with the actual variable capturing CloudWatch status earlier in your script.
+
+You can modify the output format (comma-separated, etc.) as needed for CSV.
+
+
+Let me know if you want to send this file to S3 or append it to another central file.
+
