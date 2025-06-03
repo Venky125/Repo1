@@ -1,0 +1,90 @@
+Great question — editing the trust policy of Role A can be confusing. Here's a clear step-by-step guide to help you add the Principal section correctly:
+
+
+---
+
+✅ GOAL:
+
+You want Role A (EC2 Role) to trust Role B (Lambda Role), so that Lambda can assume EC2's role.
+
+
+---
+
+🔹 Step-by-Step: Modify Trust Relationship of Role A
+
+1. Go to AWS Console → IAM → Roles
+
+
+2. Search for Role A (the IAM role attached to EC2)
+
+
+3. Click on Role A, then:
+
+Go to the “Trust relationships” tab
+
+Click on “Edit trust policy”
+
+
+
+4. You’ll see a JSON like this (before editing):
+
+
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+
+5. Modify it to add another statement (or merge if needed). Updated version:
+
+
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<account-id>:role/B"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+
+> Replace <account-id> with your actual AWS account ID, and B with the exact IAM Role name used by Lambda.
+
+
+
+
+---
+
+🔸 Common Mistakes to Avoid
+
+"AWS": "arn:aws:iam::..." must be a fully qualified role ARN, not just the name.
+
+Don’t remove the existing ec2.amazonaws.com service trust unless you’re sure EC2 doesn’t need it.
+
+The policy must be valid JSON — use a JSON validator if needed.
+
+
+
+---
+
+Let me know your actual Role A and Role B ARNs if you'd like me to generate the exact policy JSON for you.
+
