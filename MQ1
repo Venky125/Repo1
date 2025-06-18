@@ -1,0 +1,57 @@
+To check only for entries where the date exactly matches today's date (in the line that is 7 lines above the message AMQ9456I) and store the result in a single log file, use this script:
+
+
+---
+
+✅ Script: Match Only Today’s Date & Store in One Log
+
+#!/bin/bash
+
+# Output file
+output_log="/tmp/amq9456_today_only.log"
+: > "$output_log"  # Clear previous content
+
+# Today's date in MM/DD/YYYY format
+today=$(date +"%m/%d/%Y")
+
+# Loop through matching log files
+for file in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG; do
+    awk -v t1="$today" -v fname="$file" '
+    {
+        lines[NR] = $0
+    }
+    /AMQ9456I/ {
+        if ((NR-7) in lines) {
+            date_line = lines[NR-7]
+            if (date_line ~ t1) {
+                print "File: " fname
+                for (i=NR-7; i<=NR; i++) print lines[i]
+                print "----"
+            }
+        }
+    }
+    ' "$file"
+done >> "$output_log"
+
+
+---
+
+📄 Result:
+
+Output will be stored at: /tmp/amq9456_today_only.log
+
+Only AMQ9456I messages where the date 7 lines above matches today will be included.
+
+Format must be exactly MM/DD/YYYY in the log.
+
+
+
+---
+
+Let me know if:
+
+You want to change the number of lines shown (e.g. 10 lines above/below).
+
+The date format is different (e.g. DD/MM/YYYY or YYYY-MM-DD).
+
+
