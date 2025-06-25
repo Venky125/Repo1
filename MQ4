@@ -1,0 +1,119 @@
+Perfect! Here's what you're asking:
+
+
+---
+
+✅ Final Requirement:
+
+After finding an AMQ9456I message with today’s date (8 lines above), also look ahead for the string:
+
+The remote queue manager is out of step
+
+Then:
+
+When found, print 10 lines starting from that line.
+
+
+
+---
+
+✅ Complete Enhanced Script
+
+#!/bin/bash
+
+# Output log file
+output_log="/tmp/amq9456_today_only.log"
+: > "$output_log"  # Clear previous content
+
+# Get today's date in MM/DD/YYYY format
+today=$(date +"%m/%d/%Y")
+
+# Process each log file
+for file in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG; do
+    awk -v t1="$today" -v fname="$file" '
+    {
+        lines[NR] = $0
+        max = NR
+    }
+
+    END {
+        for (i = 9; i <= max; i++) {
+            if (lines[i] ~ /AMQ9456I/) {
+                date_line = lines[i - 8]
+                if (date_line ~ t1) {
+                    print "File: " fname
+                    # Print 8 lines above + AMQ9456I line + next line (i+1)
+                    for (j = i - 8; j <= i + 1; j++) {
+                        if (j in lines) print lines[j]
+                    }
+
+                    # Search ahead for the remote QM message
+                    found = 0
+                    for (k = i + 2; k <= max; k++) {
+                        if (lines[k] ~ /The remote queue manager is out of step/) {
+                            found = 1
+                            print "-- Remote QM Out of Step Block --"
+                            for (m = k; m < k + 10 && m <= max; m++) {
+                                print lines[m]
+                            }
+                            break
+                        }
+                    }
+
+                    if (!found) {
+                        print "-- No remote queue manager error found after AMQ9456I --"
+                    }
+
+                    print "----"
+                }
+            }
+        }
+    }
+    ' "$file"
+done >> "$output_log"
+
+
+---
+
+✅ What This Script Does:
+
+For each match of AMQ9456I with today's date:
+
+Prints 8 lines before, the AMQ9456I line, and 1 line after
+
+Then scans forward for:
+
+The remote queue manager is out of step
+
+If found, prints that line + 9 more (total 10 lines).
+
+If not found, prints a message saying it wasn’t found.
+
+
+Appends everything into /tmp/amq9456_today_only.log.
+
+
+
+---
+
+📝 Example Output Block:
+
+File: /MQ/xyz/data/qmgrs/ABC/errors/AMQERR01.LOG
+06/18/2025 ...
+...
+AMQ9456I: The SSL connection was closed
+...
+-- Remote QM Out of Step Block --
+The remote queue manager is out of step ...
+... (next 9 lines)
+----
+
+Let me know if you'd like to:
+
+Search further ahead (e.g., 100 lines instead of stopping soon)
+
+Extract only the remote QM section into a different log
+
+Highlight the section or timestamp in output
+
+
