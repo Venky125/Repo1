@@ -1,0 +1,99 @@
+Thank you — that’s a key observation. Here's exactly what's going wrong:
+
+🔍 Problem Analysis
+
+1. Only the first file is printing "File: ..."
+
+Because getline reads from the same awk input stream, once we manually getline, it consumes the next line, and awk proceeds to the line after that — so one file might eat through the rest.
+
+
+
+2. Printing all lines after AMQ9456I instead of just one
+
+Because getline pulls one extra line into the awk engine, and then awk continues with the following one as normal — you effectively move ahead by 2 lines, but only saved one.
+
+
+
+
+
+---
+
+✅ Corrected & Reliable Script
+
+This version:
+
+Does not use getline (to avoid breaking the input stream).
+
+Stores all lines first.
+
+Then processes them in the END block for full control.
+
+
+
+---
+
+#!/bin/bash
+
+# Output log file
+output_log="/tmp/amq9456_today_only.log"
+: > "$output_log"  # Clear previous content
+
+# Get today's date in MM/DD/YYYY format
+today=$(date +"%m/%d/%Y")
+
+# Process each log file
+for file in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG; do
+    awk -v t1="$today" -v fname="$file" '
+    {
+        lines[NR] = $0
+        max = NR
+    }
+
+    END {
+        for (i = 9; i <= max; i++) {
+            if (lines[i] ~ /AMQ9456I/) {
+                date_line = lines[i - 8]
+                if (date_line ~ t1) {
+                    print "File: " fname
+                    for (j = i - 8; j <= i + 1; j++) {
+                        if (j in lines) print lines[j]
+                    }
+                    print "----"
+                }
+            }
+        }
+    }
+    ' "$file"
+done >> "$output_log"
+
+
+---
+
+✅ What It Does Now:
+
+Reads and stores all lines first.
+
+In END, it:
+
+Checks each line for AMQ9456I
+
+If line i-8 (8 above) matches today’s date → it's a valid match.
+
+Then prints lines from i-8 to i+1 (8 before, the match, and one after).
+
+
+Appends all valid results to /tmp/amq9456_today_only.log
+
+
+
+---
+
+Let me know if you'd like:
+
+To support rotated logs like AMQERR01.LOG.1
+
+To extract only the matching text (more concise logs)
+
+To support matching by date range instead of only today
+
+
