@@ -1,0 +1,86 @@
+Got it! Let's take the finalized version of your script from earlier (where we printed 8 lines above and the matching line) and just modify it to also print the next line (NR+1) — without switching to END block logic or changing too much.
+
+But to do this correctly (since awk doesn't have access to the next line at the time it matches), we need to read ahead just one line using a queue-like buffer.
+
+
+---
+
+✅ Finalized Script (Minimal Change, Includes Next Line After AMQ9456I)
+
+#!/bin/bash
+
+# Output log file
+output_log="/tmp/amq9456_today_only.log"
+: > "$output_log"  # Clear existing content
+
+# Get today's date in MM/DD/YYYY format
+today=$(date +"%m/%d/%Y")
+
+# Process all AMQERR01.LOG files
+for file in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG; do
+    awk -v t1="$today" -v fname="$file" '
+    {
+        lines[NR] = $0
+    }
+
+    NR > 1 {
+        prev_line = lines[NR-1]
+    }
+
+    /AMQ9456I/ {
+        if ((NR-8) in lines) {
+            date_line = lines[NR-8]
+            if (date_line ~ t1) {
+                print "File: " fname
+                for (i = NR-8; i <= NR+1; i++) {
+                    if ((i) in lines)
+                        print lines[i]
+                    else if (i == NR+1) {
+                        # Read next line manually if not already read
+                        getline next_line
+                        print next_line
+                    }
+                }
+                print "----"
+            }
+        }
+    }
+    ' "$file"
+done >> "$output_log"
+
+
+---
+
+✅ What’s Changed
+
+Kept your original line-buffer logic (lines[NR] = $0).
+
+For NR+1:
+
+If already read, we print from the array.
+
+If not (which it won't be), we do getline next_line to read it manually at that point.
+
+
+
+
+---
+
+🧪 Example Output Block (in /tmp/amq9456_today_only.log) might look like:
+
+File: /MQ/mq1/data/qmgrs/QM1/errors/AMQERR01.LOG
+06/18/2025 10:21:15 - Process(1001.2) ...
+...
+AMQ9456I: The system SSL configuration ...
+<next line after AMQ9456I>
+----
+
+Let me know if:
+
+You want this script to check for last 2 days instead of just today.
+
+You want to include .1, .2 log files (rotated logs).
+
+You want the output sorted or grouped.
+
+
