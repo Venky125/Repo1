@@ -1,0 +1,124 @@
+Great — you're almost there! Since your script writes to a log file (/tmp/amq9456_today_only.log), and you want to send an email notification only when something is written, here's how to do it.
+
+
+---
+
+✅ Step-by-Step Integration: Send Email If Log Has Data
+
+Assuming:
+
+You already have SMTP server details, a subject, and email content (body).
+
+You’re using sendmail, mailx, or a modern SMTP tool like msmtp or mail.
+
+
+
+---
+
+📍 1. Final Script Structure (Add Email Check at End)
+
+Here's your complete script with the email block added at the end:
+
+#!/bin/bash
+
+# Output log file
+output_log="/tmp/amq9456_today_only.log"
+: > "$output_log"  # Clear previous content
+
+# Today's date in MM/DD/YYYY format
+today=$(date +"%m/%d/%Y")
+
+# Process each log file
+for file in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG; do
+    awk -v t1="$today" -v fname="$file" '
+    {
+        lines[NR] = $0
+        max = NR
+    }
+
+    END {
+        for (i = 9; i <= max; i++) {
+            if (lines[i] ~ /AMQ9456I/) {
+                date_line = lines[i - 8]
+                if (date_line ~ t1) {
+
+                    print ""  # Blank line before main block
+
+                    print "File: " fname
+                    for (j = i - 8; j <= i + 1; j++) {
+                        if (j in lines) print lines[j]
+                    }
+
+                    found = 0
+                    for (k = i + 2; k <= max; k++) {
+                        if (lines[k] ~ /The remote queue manager is out of step/) {
+                            print ""  # Blank line before remote QM block
+                            found = 1
+                            print "-- Remote QM Out of Step Block --"
+                            for (m = k; m < k + 10 && m <= max; m++) {
+                                print lines[m]
+                            }
+                            break
+                        }
+                    }
+
+                    if (!found) {
+                        print ""
+                        print "-- No remote queue manager error found after AMQ9456I --"
+                    }
+
+                    print "----"
+                }
+            }
+        }
+    }
+    ' "$file"
+done >> "$output_log"
+
+
+---
+
+📬 2. Email Notification Block (Append After Script)
+
+Insert this after the done >> "$output_log" line:
+
+# If log file has content, send email
+if [ -s "$output_log" ]; then
+    mail_subject="MQ Alert: AMQ9456I detected on $(hostname)"
+    mail_body="One or more AMQ9456I entries with today's date were found. Please check the attached log.\n\n$(cat "$output_log")"
+    mail_to="your_email@example.com"
+
+    # Using mailx (works on most systems)
+    echo -e "$mail_body" | mailx -s "$mail_subject" "$mail_to"
+
+    # Alternative if using sendmail or msmtp – let me know and I’ll adjust for that
+fi
+
+
+---
+
+✅ What This Does:
+
+-s: Sets the subject
+
+echo -e: Includes multiline content (log data)
+
+Sends email only if the log is not empty (-s "$output_log")
+
+
+
+---
+
+🔧 Customize for Your Setup:
+
+If you're using Gmail SMTP, or need to use msmtp or sendmail with auth (SMTP server, port, username, password), I can help set that up.
+
+Just tell me:
+
+Your preferred method: mailx, sendmail, msmtp, or Python with SMTP?
+
+Whether you want to attach the log file or just paste its content into the email body.
+
+
+Let me know, and I’ll tailor the final step for your exact environment.
+
