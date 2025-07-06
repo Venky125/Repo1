@@ -1,0 +1,66 @@
+Absolutely! Here's a structured list of practical Terraform bullet points, aligned just like the AWS services list — ideal for your resume, interview prep, or even a project documentation summary.
+
+Each point is focused on real-world infrastructure engineering outcomes, not just tool usage:
+
+
+---
+
+✅ Terraform – Resume-Style Bullet Points
+
+1. Infrastructure Provisioning
+
+Provisioned and managed scalable cloud infrastructure (VPC, EC2, S3, IAM) using Terraform to ensure consistency and automation across environments.
+
+
+2. Modular Configuration
+
+Developed reusable and modular Terraform code for commonly used AWS components, improving maintainability and reducing duplication.
+
+
+3. Remote State Management
+
+Configured remote state storage using S3 backend with DynamoDB for state locking, enabling safe collaboration in a team setup.
+
+
+4. Variables and Outputs
+
+Utilized input variables, locals, and output values for flexible environment-specific configurations and easier integration between modules.
+
+
+5. Resource Dependency Management
+
+Leveraged depends_on and implicit dependencies in Terraform to manage resource provisioning order and avoid race conditions.
+
+
+6. Terraform Workspaces
+
+Managed multiple environments (dev, stage, prod) using Terraform workspaces, allowing isolated state management across accounts or regions.
+
+
+7. Plan & Apply Workflow
+
+Used terraform plan and terraform apply in CI pipelines and local runs to safely validate and deploy infrastructure changes.
+
+
+8. State Inspection & Troubleshooting
+
+Investigated resource drift and resolved issues using terraform state, terraform taint, and targeted resource re-application.
+
+
+9. Policy Compliance
+
+Integrated tagging and IAM naming conventions into Terraform modules to enforce cost, compliance, and access policies.
+
+
+10. CI/CD Integration
+
+(Optional, if applicable) Integrated Terraform into CI/CD workflows to perform automated infrastructure deployments using GitHub Actions or Jenkins.
+
+
+
+---
+
+If you're not using CI/CD yet for Terraform, you can skip #10.
+
+Would you like these included in a full resume section layout with headings like “Key Projects,” “DevOps Tools,” or “Cloud Infrastructure Engineering”? I can also create a formatted version for LinkedIn if needed.
+
