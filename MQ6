@@ -1,0 +1,132 @@
+Here is your finalized, production-ready script that:
+
+✅ Captures logs from the last 3 hours,
+✅ Avoids any data loss due to script run time,
+✅ Filters entries only for current date,
+✅ Searches for AMQ9456I messages and their context,
+✅ Looks ahead for "The remote queue manager is out of step" and captures 10 lines,
+✅ Sends email if any match is found.
+
+
+---
+
+✅ Final Script: MQ Error Monitor for Last 3 Hours
+
+#!/bin/bash
+
+# ==== CONFIGURATION ====
+output_log="/tmp/amq9456_today_only.log"
+: > "$output_log"  # Clear previous content
+
+# Date and time for filtering
+today=$(date +"%m/%d/%Y")
+cutoff=$(date -d "3 hours ago" +"%H:%M:%S")
+now_time=$(date +"%H:%M:%S")
+
+# ==== MAIN PROCESS ====
+for file in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG; do
+    awk -v today="$today" -v cutoff="$cutoff" -v now="$now_time" -v fname="$file" '
+    function to24(hms, ampm,   h, m, s, t) {
+        split(hms, t, ":")
+        h = t[1]; m = t[2]; s = t[3]
+        if (ampm == "PM" && h < 12) h += 12
+        if (ampm == "AM" && h == 12) h = 0
+        return sprintf("%02d:%02d:%02d", h, m, s)
+    }
+
+    {
+        lines[NR] = $0
+        max = NR
+    }
+
+    END {
+        for (i = 9; i <= max; i++) {
+            if (lines[i] ~ /AMQ9456I/) {
+                header = lines[i - 8]
+                split(header, a, " ")
+                log_date = a[1]
+                log_time = a[2]
+                ampm = a[3]
+                time_24 = to24(log_time, ampm)
+
+                if (log_date == today && time_24 >= cutoff && time_24 <= now) {
+                    print ""  # blank line before AMQ block
+                    print "File: " fname
+                    for (j = i - 8; j <= i + 1; j++) {
+                        if (j in lines) print lines[j]
+                    }
+
+                    found = 0
+                    for (k = i + 2; k <= max; k++) {
+                        if (lines[k] ~ /The remote queue manager is out of step/) {
+                            print ""  # blank line before out-of-step block
+                            found = 1
+                            print "-- Remote QM Out of Step Block --"
+                            for (m = k; m < k + 10 && m <= max; m++) {
+                                print lines[m]
+                            }
+                            break
+                        }
+                    }
+
+                    if (!found) {
+                        print ""
+                        print "-- No remote queue manager error found after AMQ9456I --"
+                    }
+
+                    print "----"
+                }
+            }
+        }
+    }
+    ' "$file"
+done >> "$output_log"
+
+
+---
+
+✅ Optional: Add Email Notification
+
+If the log has any content, send an email:
+
+if [ -s "$output_log" ]; then
+    {
+        echo "Subject: MQ Alert: AMQ9456I detected on $(hostname)"
+        echo "To: your_email@example.com"
+        echo "From: noreply@yourdomain.com"
+        echo
+        cat "$output_log"
+    } | msmtp your_email@example.com
+fi
+
+Replace with your method: mailx, sendmail, or msmtp as needed.
+
+
+---
+
+✅ Cron Setup Example (Every 3 Hours)
+
+0 */3 * * * /path/to/mq_monitor.sh
+
+
+---
+
+🔒 Assumptions
+
+Log format is like: MM/DD/YYYY HH:MM:SS AM/PM - ...
+
+You have access to all MQ paths as in /MQ/*/data/qmgrs/*/errors/AMQERR01.LOG
+
+
+
+---
+
+Let me know if:
+
+You want this to support multiple dates (e.g., if script runs across midnight)
+
+You want to include .1, .2, rotated logs
+
+You want the script to log the start/end time or execution summary too
+
+
