@@ -1,0 +1,261 @@
+Here’s a comprehensive list of monitoring parameters for Apache Tomcat and WebSphere Liberty Profile (Liberty), similar to what we discussed for traditional WebSphere.
+
+
+---
+
+🔹 1. Process & Port Monitoring (Common for Both)
+
+Service/process status: Is Tomcat/Liberty running?
+
+Startup time and uptime
+
+Listening ports:
+
+HTTP, HTTPS
+
+AJP (for Tomcat)
+
+
+PID tracking for restarts/crashes
+
+Unexpected restarts (via log time comparison or PID change)
+
+
+
+---
+
+🔹 2. JVM-Level Monitoring (Same for Tomcat and Liberty)
+
+✅ Heap & Memory
+
+Total heap vs used heap
+
+Non-heap memory (e.g., metaspace)
+
+GC count and pause times (via JMX or tools like VisualVM, Prometheus)
+
+GC logs (optional: use -Xloggc and parse)
+
+
+✅ Thread Monitoring
+
+Total thread count
+
+Thread states (runnable, waiting, blocked)
+
+Deadlocks or stuck threads
+
+Web thread pool usage
+
+
+Tools: JConsole, JVisualVM, Prometheus JMX Exporter, Micrometer
+
+
+---
+
+🔹 3. CPU, Memory, and OS Resource Monitoring
+
+JVM CPU usage
+
+Process memory consumption (resident vs virtual memory)
+
+Open file descriptors (Linux: lsof, ulimit)
+
+Disk I/O and log file size growth
+
+Swap usage
+
+Network sockets in use
+
+
+Tools: top, htop, nmon, or monitoring platforms like Prometheus + Grafana, Datadog, Zabbix, etc.
+
+
+---
+
+🔹 4. Application Status & Deployment Monitoring
+
+🔸 Tomcat
+
+WAR file deployment status
+
+Is the app deployed and accessible?
+
+Check for logs in catalina.out
+
+
+Context availability (<tomcat_url>/<app-context>/)
+
+WEB-INF/web.xml load errors
+
+Deployment directory monitoring (webapps/)
+
+Servlet or JSP load errors
+
+ServletContextListener load issues
+
+WAR redeploy history (no direct history unless you maintain logs manually)
+
+
+🔸 WebSphere Liberty
+
+Application status via:
+
+Admin Center UI
+
+CLI (server status <serverName>)
+
+REST API (via Open Liberty Admin Center)
+
+JMX (e.g., WebAppMBean)
+
+
+Deployment success/failure (via messages.log)
+
+EAR/WAR deployment status
+
+Auto-deploy folder status (if used)
+
+Application not started due to missing feature (common in Liberty if server.xml is incomplete)
+
+
+
+---
+
+🔹 5. Logs & Error Monitoring
+
+🔸 Tomcat
+
+catalina.out, localhost.log, manager.log
+
+Watch for: SEVERE, OutOfMemory, BindException, ServletException
+
+
+
+🔸 Liberty
+
+messages.log, console.log, ffdc/
+
+Watch for: SRVE, CWWKZ, CWWKE, FFDC entries
+
+Stack traces
+
+
+
+Integrate with ELK, Splunk, or Fluentd for log centralization.
+
+
+---
+
+🔹 6. Thread Pools & Connection Pools
+
+🔸 Tomcat
+
+HTTP connector thread pool:
+
+maxThreads, currentThreadsBusy, acceptCount
+
+Monitored via JMX (ThreadPool MBean)
+
+
+JDBC connection pool (DBCP, HikariCP, etc.)
+
+Active connections
+
+Wait time
+
+Connection leaks
+
+
+
+🔸 Liberty
+
+WebContainer thread pool size
+
+JNDI JDBC connection pool:
+
+Connection count
+
+Wait time
+
+Leaks or timeouts
+
+Configured via server.xml and monitored via JMX
+
+
+
+
+---
+
+🔹 7. Application-Level Monitoring (Optional but Useful)
+
+Servlet response time (via APM or Prometheus Micrometer)
+
+HTTP error rates (4xx, 5xx)
+
+Session count (active sessions)
+
+Application-specific health endpoints (/health, /actuator, etc.)
+
+
+
+---
+
+🔹 8. Security Monitoring
+
+SSL certificate expiry (check keystore/truststore used)
+
+Auth failures (in logs)
+
+Open ports (run nmap scan or netstat)
+
+For Liberty:
+
+JAAS login modules
+
+TLS settings (server.xml)
+
+
+
+
+---
+
+🔹 9. Synthetic & External Monitoring
+
+URL health checks using curl, wget, or synthetic monitoring tools
+
+API endpoint monitoring
+
+Application login-response-logout synthetic scripts
+
+
+
+---
+
+🔹 10. Monitoring Tools Support
+
+Feature	Tomcat	Liberty
+
+Native Admin UI	Basic (Manager app)	Admin Center (more advanced)
+JMX Support	Yes	Yes
+REST Monitoring APIs	No (unless custom)	Yes (Open Liberty supports it)
+Logging	catalina.out, etc.	messages.log, FFDC
+Application Status	Via Manager app or curl	Admin Center / JMX / REST
+Prometheus/Grafana Integration	Yes (via JMX Exporter or Micrometer)	Yes (Micrometer + Liberty metrics)
+APM Integration (AppDynamics, etc.)	Yes	Yes
+
+
+
+---
+
+✅ Do You Want?
+
+A JMX monitoring script?
+
+A Prometheus + JMX Exporter setup guide?
+
+Or a spreadsheet checklist to track all components?
+
+
+Let me know your preferred format.
+
