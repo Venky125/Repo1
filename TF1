@@ -1,0 +1,136 @@
+Great — managing two different versions of CloudWatch Agent on different sets of EC2 instances using SSM Association through Terraform is absolutely possible. Here’s how to do it in a clean and scalable way.
+
+
+---
+
+✅ Objective
+
+You want to install/maintain two different CloudWatch Agent versions via SSM associations.
+
+The version should be driven by a Terraform variable.
+
+You can apply different versions to different instance targets (via tags or instance IDs).
+
+
+
+---
+
+🧩 Approach Overview
+
+1. Create a Terraform variable (e.g., cw_agent_version).
+
+
+2. Use aws_ssm_association to run the AWS-ConfigureAWSPackage document.
+
+
+3. Create two different associations based on different versions.
+
+
+4. Use targets or conditions to control which version goes to which instance.
+
+
+
+
+---
+
+🔧 Terraform Code Example
+
+1. Variables
+
+variable "cw_agent_version_1" {
+  default = "1.247347.3b250378"
+}
+
+variable "cw_agent_version_2" {
+  default = "1.247356.1b123456"
+}
+
+2. Two Different SSM Associations
+
+resource "aws_ssm_association" "cw_agent_v1" {
+  name            = "AWS-ConfigureAWSPackage"
+  association_name = "Install-CWAgent-Version1"
+
+  parameters = {
+    action = ["Install"]
+    name   = ["AmazonCloudWatchAgent"]
+    version = [var.cw_agent_version_1]
+  }
+
+  targets {
+    key    = "tag:CloudWatchVersion"
+    values = ["v1"]
+  }
+
+  apply_only_at_cron_interval = false
+  compliance_severity         = "HIGH"
+  schedule_expression         = "rate(1 day)"
+}
+
+resource "aws_ssm_association" "cw_agent_v2" {
+  name            = "AWS-ConfigureAWSPackage"
+  association_name = "Install-CWAgent-Version2"
+
+  parameters = {
+    action = ["Install"]
+    name   = ["AmazonCloudWatchAgent"]
+    version = [var.cw_agent_version_2]
+  }
+
+  targets {
+    key    = "tag:CloudWatchVersion"
+    values = ["v2"]
+  }
+
+  apply_only_at_cron_interval = false
+  compliance_severity         = "HIGH"
+  schedule_expression         = "rate(1 day)"
+}
+
+
+---
+
+🏷️ How to Use
+
+Tag your instances:
+
+Instances that need version 1:
+
+Key: CloudWatchVersion
+Value: v1
+
+Instances that need version 2:
+
+Key: CloudWatchVersion
+Value: v2
+
+
+
+
+---
+
+✅ Advantages
+
+Clean separation of logic.
+
+Easy version control via Terraform.
+
+Dynamic target selection using tags.
+
+You can apply rollback/version switch just by updating tags or variables.
+
+
+
+---
+
+Let Me Know If You Also Want:
+
+To handle it using instance IDs instead of tags
+
+To store the versions in a map
+
+Or apply it to multiple regions/accounts
+
+
+Let me know how you want to structure this further.
+
