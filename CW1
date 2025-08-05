@@ -1,0 +1,145 @@
+Alright, let’s go step-by-step from the very start for your two different CloudWatch Agent version plan, including AMI preparation and Terraform integration.
+
+
+---
+
+Step 1 – Maintain Versions as Variables
+
+In your Terraform code, define variables for both CloudWatch Agent versions.
+
+
+variable "cw_agent_version_v1" {
+  default = "1.247356.0b251908"
+}
+
+variable "cw_agent_version_v2" {
+  default = "1.247361.0b252105"
+}
+
+You can later decide which one to use in test vs production by referencing the right variable.
+
+
+
+---
+
+Step 2 – Build AMIs with Pre-installed CloudWatch Agent
+
+We’ll use Packer here (triggered by Terraform or manually) to create AMIs that already have CloudWatch installed.
+
+Example Packer snippet (Linux example):
+
+{
+  "builders": [{
+    "type": "amazon-ebs",
+    "region": "ap-south-1",
+    "source_ami": "ami-xxxxxxxx",  
+    "instance_type": "t3.micro",
+    "ssh_username": "ec2-user",
+    "ami_name": "cw-agent-{{user `cw_agent_version`}}-{{timestamp}}"
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum install -y amazon-cloudwatch-agent-{{user `cw_agent_version`}}"
+      ]
+    }
+  ]
+}
+
+Run Packer twice with different cw_agent_version values to create two AMIs.
+
+Store AMI IDs in Terraform variables or SSM Parameter Store.
+
+
+
+---
+
+Step 3 – Test in EC2 Instances
+
+In Terraform, launch EC2 instances using the AMI for the test environment.
+
+
+resource "aws_instance" "cw_agent_test" {
+  ami           = var.cw_agent_ami_id_v1
+  instance_type = "t3.micro"
+  tags = {
+    Name = "CW-Agent-Test-V1"
+  }
+}
+
+Validate:
+
+CloudWatch agent service is running.
+
+Config file matches your requirement.
+
+Metrics are flowing to CloudWatch.
+
+
+
+
+---
+
+Step 4 – Approval and Release to Compute Team
+
+Once tested, share AMI ID and version number with the compute team.
+
+They include the AMI in their official release list.
+
+They may apply launch templates or autoscaling groups that reference this AMI.
+
+
+
+---
+
+Step 5 – Central Push to All Instances
+
+For existing instances that don’t have the updated agent, Terraform can:
+
+1. Create SSM Association to install the package with a version:
+
+
+
+resource "aws_ssm_association" "install_cw_agent_v1" {
+  name = "AWS-ConfigureAWSPackage"
+  targets {
+    key    = "tag:Environment"
+    values = ["Prod"]
+  }
+  parameters = {
+    action  = ["Install"]
+    name    = ["AmazonCloudWatchAgent"]
+    version = [var.cw_agent_version_v1]
+  }
+}
+
+2. Use different associations for V1 and V2, targeting them based on EC2 tags (tag:CWVersion = v1 or v2).
+
+
+
+
+---
+
+Step 6 – Version Tracking
+
+Keep a simple mapping in SSM Parameter Store:
+
+/cw-agent/version/test → 1.247356.0b251908
+
+/cw-agent/version/prod → 1.247361.0b252105
+
+
+Terraform can read this dynamically so no hardcoding.
+
+
+
+---
+
+If you want, I can make you a Terraform + Packer pipeline so you:
+
+Change version → run build → AMI gets created → Terraform updates test → after approval → rollout to all.
+
+
+Do you want me to make that combined workflow?
+
