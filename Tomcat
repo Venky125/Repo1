@@ -1,0 +1,58 @@
+That’s normal — Tomcat doesn’t ship with setenv.sh by default.
+It’s just a convention: if the script exists in $CATALINA_HOME/bin/, Tomcat will automatically source it during startup.
+
+So in your case, you can just create it manually.
+
+
+---
+
+Steps to create setenv.sh for JMX
+
+1. Go to your Tomcat bin directory:
+
+cd /path/to/tomcat/bin
+
+
+2. Create the file:
+
+vi setenv.sh
+
+
+3. Add the JMX settings (example for no authentication, testing only):
+
+#!/bin/sh
+CATALINA_OPTS="$CATALINA_OPTS \
+-Dcom.sun.management.jmxremote \
+-Dcom.sun.management.jmxremote.port=9090 \
+-Dcom.sun.management.jmxremote.rmi.port=9090 \
+-Djava.rmi.server.hostname=YOUR_SERVER_IP \
+-Dcom.sun.management.jmxremote.authenticate=false \
+-Dcom.sun.management.jmxremote.ssl=false"
+export CATALINA_OPTS
+
+
+4. Make it executable:
+
+chmod +x setenv.sh
+
+
+5. Restart Tomcat:
+
+$CATALINA_HOME/bin/shutdown.sh
+$CATALINA_HOME/bin/startup.sh
+
+
+
+
+---
+
+Once done, you can try to connect with:
+
+service:jmx:rmi:///jndi/rmi://YOUR_SERVER_IP:9090/jmxrmi
+
+
+---
+
+If you want, I can also give you the firewall + remote access steps so that you can connect from your local machine’s jconsole or VisualVM to your Linux Tomcat JMX.
+Do you want me to add those next?
+
