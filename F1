@@ -1,0 +1,111 @@
+Got it ✅
+You want a fully parameterized setup where the CloudWatch Agent version can be:
+
+1. Stored in SSM Parameter Store
+
+
+2. Read dynamically by Terraform
+
+
+3. Passed into the SSM Association
+
+
+4. Also possible to override via AWS CLI when running manually
+
+
+
+Here’s how we can do it step-by-step from scratch.
+
+
+---
+
+1️⃣ Store the version in SSM Parameter Store
+
+You only need to create this once.
+
+aws ssm put-parameter \
+  --name "/cloudwatch-agent/version" \
+  --type "String" \
+  --value "1.300030.0b251245" \
+  --overwrite
+
+
+---
+
+2️⃣ Terraform – Read Version from Parameter Store
+
+Terraform will fetch the value from Parameter Store and use it in the SSM Association.
+
+# Get the version from Parameter Store
+data "aws_ssm_parameter" "cw_agent_version" {
+  name = "/cloudwatch-agent/version"
+}
+
+# SSM Association to install CloudWatch Agent
+resource "aws_ssm_association" "install_cw_agent" {
+  name        = "AmazonCloudWatch-ManageAgent"
+  association_name = "Install-CW-Agent"
+  parameters = {
+    action  = ["Install"]
+    name    = ["AmazonCloudWatchAgent"]
+    version = [data.aws_ssm_parameter.cw_agent_version.value]  # <--- dynamically passed
+  }
+
+  targets {
+    key    = "tag:Environment"
+    values = ["Test"]
+  }
+}
+
+
+---
+
+3️⃣ AWS CLI – Run with Parameter Override
+
+If you want to run manually and pass version from Parameter Store dynamically:
+
+aws ssm send-command \
+  --targets "Key=instanceIds,Values=i-1234567890abcdef0" \
+  --document-name "AWS-ConfigureAWSPackage" \
+  --comment "Install CloudWatch Agent" \
+  --parameters "action=Install,name=AmazonCloudWatchAgent,version=$(aws ssm get-parameter --name '/cloudwatch-agent/version' --query 'Parameter.Value' --output text)"
+
+Or override without touching Parameter Store:
+
+aws ssm send-command \
+  --targets "Key=instanceIds,Values=i-1234567890abcdef0" \
+  --document-name "AWS-ConfigureAWSPackage" \
+  --comment "Install CW Agent" \
+  --parameters "action=Install,name=AmazonCloudWatchAgent,version=1.300030.0b251245"
+
+
+---
+
+4️⃣ Workflow in Your Case
+
+1. Dev/Test – Update version in /cloudwatch-agent/version parameter.
+
+
+2. Terraform in Test – Picks it automatically and installs on EC2s.
+
+
+3. Basic validation – Verify agent version.
+
+
+4. Compute team AMI build – Use Packer with same parameter value.
+
+
+5. Approval – Once approved, Terraform in Prod pushes it to all instances.
+
+
+6. CLI – If emergency rollback/upgrade needed, pass version directly without Terraform.
+
+
+
+
+---
+
+If you want, I can now extend this with Packer so that the AMI build also pulls the version from Parameter Store — meaning test, AMI creation, and production rollout will all use one source of truth. That will make your process airtight.
+
+Do you want me to prepare that next?
+
