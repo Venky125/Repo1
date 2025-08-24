@@ -1,0 +1,72 @@
+Got it 👍 thanks for clarifying.
+
+Currently, your SSM Document only checks whether the CloudWatch agent binary exists (/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent) and skips reinstallation if found. But you want version awareness:
+
+If the agent is installed → check the installed version.
+
+Compare it with the Parameter Store value {{ssm:/CWAgentVersion}}.
+
+If versions differ → upgrade (in-place update).
+
+If same → just move on to the config step.
+
+
+Here’s how you can do that in your SSM Document YAML (pseudo-final structure, you can plug into your existing doc):
+
+---
+schemaVersion: '2.2'
+description: Upgrade CloudWatch Agent if version mismatch
+parameters:
+  CWAgentVersion:
+    type: String
+    description: "Desired CloudWatch Agent Version"
+
+mainSteps:
+  - name: CheckCWAgent
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - |
+            #!/bin/bash
+            CWAGENT_BIN="/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent"
+
+            if [ -f "$CWAGENT_BIN" ]; then
+              echo "CloudWatch Agent is installed. Checking version..."
+
+              INSTALLED_VER=$($CWAGENT_BIN --version | awk '{print $1}' | cut -c9-)
+              echo "Installed Version: $INSTALLED_VER"
+              echo "Target Version: {{CWAgentVersion}}"
+
+              if [ "$INSTALLED_VER" != "{{CWAgentVersion}}" ]; then
+                echo "Version mismatch. Upgrading..."
+                # === In-place update logic ===
+                yum install -y amazon-cloudwatch-agent-{{CWAgentVersion}}
+                echo "Upgrade complete."
+              else
+                echo "Version matches. Skipping upgrade."
+              fi
+            else
+              echo "CloudWatch Agent not installed. Installing fresh..."
+              yum install -y amazon-cloudwatch-agent-{{CWAgentVersion}}
+              echo "Installation complete."
+            fi
+
+Key points:
+
+--version output looks like CWAgent/1.3000056.0b1123 → cut -c9- trims CWAgent/.
+
+Compares only the numeric version string with your Parameter Store CWAgentVersion.
+
+If mismatch → runs yum install -y amazon-cloudwatch-agent-<version>.
+
+If match → skips to config.
+
+If binary doesn’t exist → fresh install.
+
+
+👉 You said you already have in-place update logic. Just replace my yum install line with your existing update snippet.
+
+Do you want me to merge this version-check logic directly into your existing SSM document (with parameters, packer, config steps all intact), or just keep it as a standalone snippet for now?
+
