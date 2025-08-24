@@ -1,0 +1,112 @@
+Got it 👍 You want your SSM document to:
+
+1. Check if CloudWatch Agent is already installed.
+
+
+2. Get its current version.
+
+
+3. Compare it with the target version (from Parameter Store).
+
+
+4. If versions differ → update CloudWatch Agent without touching config.
+
+
+
+Here’s a YAML SSM Document that does exactly that:
+
+---
+schemaVersion: '2.2'
+description: >
+  Upgrade CloudWatch Agent only if the installed version differs
+  from the target version defined in Parameter Store.
+
+parameters:
+  InstanceId:
+    type: String
+    description: "(Required) The EC2 instance ID"
+  AutomationAssumeRole:
+    type: String
+    description: "(Required) The IAM role assumed by Automation"
+  CWAgentVersionParam:
+    type: String
+    description: "The SSM parameter name that stores the target CloudWatch Agent version"
+
+mainSteps:
+  - name: GetTargetVersion
+    action: aws:executeAwsApi
+    inputs:
+      Service: ssm
+      Api: GetParameter
+      Name: "{{ CWAgentVersionParam }}"
+    outputs:
+      - Name: TargetVersion
+        Selector: $.Parameter.Value
+        Type: String
+
+  - name: GetInstalledVersion
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            if command -v /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl >/dev/null 2>&1; then
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -v | awk '{print $3}'
+            else
+              echo "NOT_INSTALLED"
+            fi
+    outputs:
+      - Name: InstalledVersion
+        Selector: $.Payload[0]
+        Type: String
+
+  - name: CompareAndUpgrade
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: UpgradeAgent
+          Variable: "{{ GetInstalledVersion.InstalledVersion }}"
+          StringNotEquals: "{{ GetTargetVersion.TargetVersion }}"
+      Default: SkipUpgrade
+
+  - name: UpgradeAgent
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-ConfigurePackage
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        action: Install
+        name: AmazonCloudWatchAgent
+        version: "{{ GetTargetVersion.TargetVersion }}"
+
+  - name: SkipUpgrade
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - echo "CloudWatch Agent is already at version {{ GetTargetVersion.TargetVersion }}, skipping upgrade"
+
+🔑 Key Notes:
+
+CWAgentVersionParam → should be the name of your SSM parameter (not the value). Example: /my/cwagent/version.
+
+Step GetTargetVersion fetches the version (e.g., 1.300056.0b57).
+
+Step GetInstalledVersion checks current agent version. If not installed, it returns NOT_INSTALLED.
+
+CompareAndUpgrade → only upgrades if versions differ.
+
+UpgradeAgent installs the exact version (no config changes).
+
+SkipUpgrade logs message if already at target version.
+
+
+Do you also want me to make it handle the NOT_INSTALLED case (so that if it’s missing, it always installs the target version)?
+
