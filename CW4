@@ -1,0 +1,44 @@
+Got it 👍 You don’t want to store the installed version in a variable. Instead, you want to directly compare the installed version output with your SSM Parameter Store variable CWAgentVersion.
+
+Here’s how your SSM Document (YAML) step should look:
+
+schemaVersion: '2.2'
+description: Compare CloudWatch Agent version and update if mismatch
+parameters:
+  CWAgentVersion:
+    type: String
+    description: CloudWatch Agent version from Parameter Store
+
+mainSteps:
+  - action: aws:runCommand
+    name: CheckAndUpdateCWAgent
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - |
+            if [ -x /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent ]; then
+              if [ "$(/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent --version | awk '{print $1}' | cut -c9-)" = "{{CWAgentVersion}}" ]; then
+                echo "CloudWatch Agent version matches ({{CWAgentVersion}}). Proceeding with config..."
+              else
+                echo "Version mismatch. Updating CloudWatch Agent..."
+                # your update logic goes here
+              fi
+            else
+              echo "CloudWatch Agent not installed. Installing..."
+              # your fresh install logic goes here
+            fi
+
+✅ Key points:
+
+Direct comparison is done with
+
+"$(/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent --version | awk '{print $1}' | cut -c9-)" = "{{CWAgentVersion}}"
+
+No intermediate variable needed.
+
+"{{CWAgentVersion}}" is automatically substituted with the SSM parameter value.
+
+
+Do you want me to also add the in-place update logic (like downloading .rpm or .deb and reinstalling) into this YAML so you can run end-to-end?
+
