@@ -1,0 +1,51 @@
+Yes, I'm confident—the installationType: ["In-place update"] parameter is valid and supported when using the AWS-ConfigureAWSPackage document in SSM to install or upgrade packages like the CloudWatch Agent.
+
+You can use it in both the AWS CLI and YAML format for SSM documents.
+
+AWS CLI Example
+
+aws ssm send-command \
+  --document-name "AWS-ConfigureAWSPackage" \
+  --instance-ids "i-0123456789abcdef0" \
+  --parameters '{"action":["Install"],"installationType":["In-place update"],"name":["AmazonCloudWatchAgent"],"version":["1.247348.1b123456"]}'
+
+This command tells SSM to upgrade the CloudWatch Agent in place without uninstalling it first.
+
+
+
+---
+
+SSM Document (YAML) Example
+
+When writing this as a part of an SSM document in YAML:
+
+schemaVersion: '2.2'
+description: Upgrade CloudWatch Agent in place
+mainSteps:
+  - name: UpdateCloudWatchAgent
+    action: aws:runCommand
+    inputs:
+      DocumentName: AWS-ConfigureAWSPackage
+      InstanceIds:
+        - '{{ InstanceId }}'
+      Parameters:
+        action:
+          - Install
+        name:
+          - AmazonCloudWatchAgent
+        version:
+          - '{{ CWAgentVersion }}'
+        installationType:
+          - In-place update
+
+Key Notes
+
+Use exact string "In-place update" for installationType, in that exact casing.
+
+This allows you to upgrade the package without disturbing your existing CloudWatch Agent configuration.
+
+Ensure the IAM role and SSM Agent versions are compatible and have necessary permissions.
+
+
+Let me know if you'd like help bundling this into a full automation runbook!
+
